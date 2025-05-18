@@ -291,8 +291,8 @@ fun EditProfileDialog(
                     onSave(
                         user.copy(
                             displayName = displayName,
-                            photoUrl = photoUrl.takeIf { it.isNotBlank() },
-                            bio = bio.takeIf { it.isNotBlank() }
+                            photoUrl = if (photoUrl.isNotBlank()) photoUrl else null,
+                            bio = if (bio.isNotBlank()) bio else ""
                         )
                     )
                 },

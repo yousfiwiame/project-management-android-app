@@ -2,6 +2,7 @@ package com.example.projectmanager.data.repository
 
 import com.example.projectmanager.data.model.Chat
 import com.example.projectmanager.data.model.Message
+import com.example.projectmanager.data.model.MessageStatus
 import com.example.projectmanager.util.Resource
 import com.google.firebase.firestore.FirebaseFirestore
 import com.google.firebase.firestore.Query
@@ -24,7 +25,7 @@ class FirebaseChatRepository @Inject constructor(
     private val messagesCollection = firestore.collection("messages")
 
     override fun getChats(userId: String): Flow<Resource<List<Chat>>> = callbackFlow {
-        trySend(Resource.Loading())
+        trySend(Resource.Loading)
 
         val listener = chatsCollection
             .whereArrayContains("participants", userId)
@@ -43,7 +44,7 @@ class FirebaseChatRepository @Inject constructor(
     }
 
     override fun getProjectChats(projectId: String): Flow<Resource<List<Chat>>> = callbackFlow {
-        trySend(Resource.Loading())
+        trySend(Resource.Loading)
 
         val listener = chatsCollection
             .whereEqualTo("project_id", projectId)
@@ -62,7 +63,7 @@ class FirebaseChatRepository @Inject constructor(
     }
 
     override fun getChatMessages(chatId: String): Flow<Resource<List<Message>>> = callbackFlow {
-        trySend(Resource.Loading())
+        trySend(Resource.Loading)
 
         val listener = messagesCollection
             .whereEqualTo("chat_id", chatId)
@@ -78,6 +79,20 @@ class FirebaseChatRepository @Inject constructor(
             }
 
         awaitClose { listener.remove() }
+    }
+
+    override suspend fun getChat(chatId: String): Resource<Chat> {
+        return try {
+            val document = chatsCollection.document(chatId).get().await()
+            val chat = document.toObject<Chat>()
+            if (chat != null) {
+                Resource.Success(chat)
+            } else {
+                Resource.Error("Chat not found")
+            }
+        } catch (e: Exception) {
+            Resource.Error(e.message ?: "Failed to get chat")
+        }
     }
 
     override suspend fun createChat(chat: Chat): Resource<Chat> {
@@ -106,8 +121,8 @@ class FirebaseChatRepository @Inject constructor(
 
             val messageWithId = message.copy(
                 id = messageRef.id,
-                status = if (message.status == Message.MessageStatus.SENDING) {
-                    Message.MessageStatus.SENT
+                status = if (message.status == MessageStatus.SENDING) {
+                    MessageStatus.SENT
                 } else {
                     message.status
                 }
@@ -144,7 +159,7 @@ class FirebaseChatRepository @Inject constructor(
                     // Add user to readBy list
                     messageRef.update(
                         "read_by", it.readBy + userId,
-                        "status", Message.MessageStatus.READ
+                        "status", MessageStatus.READ
                     ).await()
 
                     // Update chat's unread count for the user
@@ -192,9 +207,8 @@ class FirebaseChatRepository @Inject constructor(
         }
     }
 
-    override suspend fun deleteChat(chatId: String): Resource<Unit> = flow {
-        emit(Resource.Loading())
-        try {
+    override suspend fun deleteChat(chatId: String): Resource<Unit> {
+        return try {
             // Delete all messages in the chat
             val messages = messagesCollection
                 .whereEqualTo("chat_id", chatId)
@@ -208,9 +222,9 @@ class FirebaseChatRepository @Inject constructor(
             // Delete the chat
             chatsCollection.document(chatId).delete().await()
 
-            emit(Resource.Success(Unit))
+            Resource.Success(Unit)
         } catch (e: Exception) {
-            emit(Resource.Error(e.message ?: "Failed to delete chat"))
+            Resource.Error(e.message ?: "Failed to delete chat")
         }
     }
 } 

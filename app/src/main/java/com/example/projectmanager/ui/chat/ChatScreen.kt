@@ -28,6 +28,8 @@ import com.example.projectmanager.data.model.MessageType
 import com.example.projectmanager.ui.components.LoadingView
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.clickable
+import com.example.projectmanager.data.model.ChatType
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,7 +66,7 @@ fun ChatScreen(
                 title = {
                     Column {
                         Text(uiState.chat?.name ?: "Chat")
-                        if (uiState.chat?.type == Chat.ChatType.GROUP) {
+                        if (uiState.chat?.type == ChatType.GROUP) {
                             Text(
                                 text = "${uiState.chat?.participants?.size ?: 0} participants",
                                 style = MaterialTheme.typography.bodySmall

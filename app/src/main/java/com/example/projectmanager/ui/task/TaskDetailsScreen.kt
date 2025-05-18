@@ -15,6 +15,11 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.projectmanager.data.model.*
 import com.example.projectmanager.ui.components.*
 import java.util.*
+import java.text.SimpleDateFormat
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,17 +112,11 @@ fun TaskDetailsScreen(
                     // Checklists
                     ChecklistsSection(
                         checklists = uiState.task!!.checklists,
-                        onItemToggle = { checklistId, itemId, isCompleted ->
+                        onChecklistItemToggle = { checklistId, itemId, isCompleted ->
                             viewModel.toggleChecklistItem(checklistId, itemId, isCompleted)
-                        },
-                        onAddChecklist = { title ->
-                            viewModel.addChecklist(title)
                         },
                         onAddChecklistItem = { checklistId, text ->
                             viewModel.addChecklistItem(checklistId, text)
-                        },
-                        onDeleteChecklist = { checklistId ->
-                            viewModel.deleteChecklist(checklistId)
                         },
                         onDeleteChecklistItem = { checklistId, itemId ->
                             viewModel.deleteChecklistItem(checklistId, itemId)
@@ -155,14 +154,36 @@ fun TaskDetailsScreen(
 
         // Edit dialog
         if (showEditDialog) {
+            // Date picker state for the dialog
+            var showDatePickerDialog by remember { mutableStateOf(false) }
+            var dateToSelect by remember { mutableStateOf<Date?>(null) }
+            var onDateSelectedCallback by remember { mutableStateOf<((Date) -> Unit)?>(null) }
+
             EditTaskDialog(
                 task = uiState.task!!,
                 onDismiss = { showEditDialog = false },
                 onSave = { updatedTask ->
                     viewModel.updateTask(updatedTask)
                     showEditDialog = false
+                },
+                showDatePicker = { currentDate, onDateSelected ->
+                    // Save callback for when date picker is shown
+                    dateToSelect = currentDate
+                    onDateSelectedCallback = onDateSelected
+                    showDatePickerDialog = true
                 }
             )
+
+            // Show date picker if requested
+            if (showDatePickerDialog && onDateSelectedCallback != null) {
+                ProjectDatePicker(
+                    onDismissRequest = { showDatePickerDialog = false },
+                    onDateSelected = {
+                        onDateSelectedCallback?.invoke(it)
+                        showDatePickerDialog = false
+                    }
+                )
+            }
         }
 
         // Delete confirmation dialog
@@ -265,6 +286,7 @@ fun TaskHeader(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun TaskDetailsSection(
     task: Task,

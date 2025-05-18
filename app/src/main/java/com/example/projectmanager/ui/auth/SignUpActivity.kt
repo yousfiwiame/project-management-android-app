@@ -54,7 +54,7 @@ class SignUpActivity : AppCompatActivity() {
             viewModel.authState.collectLatest { state ->
                 when (state) {
                     is Resource.Loading -> showLoading(true)
-                    is Resource.Success -> {
+                    is Resource.Success<*> -> {
                         showLoading(false)
                         navigateToMain()
                     }

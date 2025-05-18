@@ -12,10 +12,14 @@ import androidx.work.*
 import com.example.projectmanager.R
 import com.example.projectmanager.data.model.Notification
 import com.example.projectmanager.data.repository.UserRepository
-import com.example.projectmanager.ui.main.MainActivity
+import com.example.projectmanager.MainActivity
+import com.example.projectmanager.data.model.User
 import com.example.projectmanager.util.Constants
+import com.example.projectmanager.util.Resource
 import com.google.firebase.messaging.FirebaseMessaging
-import dagger.hilt.android.qualifiers.ApplicationContext
+import com.google.firebase.messaging.FirebaseMessagingService
+import com.google.firebase.messaging.RemoteMessage
+import dagger.hilt.android.AndroidEntryPoint
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -28,24 +32,38 @@ import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 import javax.inject.Singleton
 
-@Singleton
-class NotificationService @Inject constructor(
-    @ApplicationContext private val context: Context,
-    private val userRepository: UserRepository,
-    private val workManager: WorkManager
-) {
+@AndroidEntryPoint
+class NotificationService : FirebaseMessagingService() {
+
+    @Inject
+    lateinit var userRepository: UserRepository
+
     private val _notifications = MutableStateFlow<List<Notification>>(emptyList())
     val notifications: Flow<List<Notification>> = _notifications
 
-    init {
+    override fun onCreate() {
+        super.onCreate()
         createNotificationChannel()
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                // Register the current user for FCM notifications
-                val currentUser = userRepository.getCurrentUser().first()
-                currentUser?.let { user ->
-                    val token = FirebaseMessaging.getInstance().token.await()
-                    userRepository.updateFcmToken(user.userId, token)
+                // Get the Resource<User> from the Flow
+                val userResource = userRepository.getCurrentUser().first()
+
+                // Check if it's a Success and extract the User
+                when (userResource) {
+                    is Resource.Success -> {
+                        val user = userResource.data
+                        val token = FirebaseMessaging.getInstance().token.await()
+                        user?.let {
+                            userRepository.updateFcmToken(it.id, token)
+                        }
+                    }
+                    is Resource.Error -> {
+                        Timber.e(userResource.exception, "Failed to get current user")
+                    }
+                    is Resource.Loading -> {
+                        // Optionally handle loading state
+                    }
                 }
             } catch (e: Exception) {
                 Timber.e(e, "Failed to register for FCM notifications")
@@ -53,47 +71,88 @@ class NotificationService @Inject constructor(
         }
     }
 
-    fun showNotification(notification: Notification) {
-        // Add to the internal list
-        val currentList = _notifications.value.toMutableList()
-        currentList.add(0, notification)
-        _notifications.value = currentList
-
-        // Show system notification
-        val intent = Intent(context, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra(Constants.EXTRA_NOTIFICATION_ID, notification.id)
+    override fun onNewToken(token: String) {
+        super.onNewToken(token)
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                // Don't directly call getCurrentUserId()
+                // Instead, get the user first and extract ID if successful
+                val userResource = userRepository.getCurrentUser().first()
+                when (userResource) {
+                    is Resource.Success -> {
+                        val user = userResource.data
+                        user?.let {
+                            userRepository.updateFcmToken(it.id, token)
+                        }
+                    }
+                    else -> {
+                        // Handle other cases or use updateFcmToken(token) as fallback
+                        userRepository.updateFcmToken(token)
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Failed to update FCM token")
+            }
         }
+    }
 
+    override fun onMessageReceived(message: RemoteMessage) {
+        super.onMessageReceived(message)
+
+        val notification = message.notification
+        val data = message.data
+
+        if (notification != null) {
+            val notificationId = data[Constants.EXTRA_NOTIFICATION_ID]?.toIntOrNull()
+                ?: System.currentTimeMillis().toInt()
+            showNotification(notificationId, notification.title, notification.body)
+        }
+    }
+
+    private fun createNotificationChannel() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            val name = Constants.NOTIFICATION_CHANNEL_NAME
+            val descriptionText = Constants.NOTIFICATION_CHANNEL_DESCRIPTION
+            val importance = NotificationManager.IMPORTANCE_DEFAULT
+            val channel = NotificationChannel(Constants.NOTIFICATION_CHANNEL_ID, name, importance).apply {
+                description = descriptionText
+            }
+            val notificationManager: NotificationManager =
+                getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+            notificationManager.createNotificationChannel(channel)
+        }
+    }
+
+    fun showNotification(notificationId: Int, title: String?, content: String?) {
+        val intent = Intent(this, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
+        }
         val pendingIntent = PendingIntent.getActivity(
-            context,
-            notification.id.hashCode(),
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+            this, 0, intent,
+            PendingIntent.FLAG_IMMUTABLE
         )
 
-        val builder = NotificationCompat.Builder(context, CHANNEL_ID)
+        val builder = NotificationCompat.Builder(this, Constants.NOTIFICATION_CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
-            .setContentTitle(notification.title)
-            .setContentText(notification.content)
+            .setContentTitle(title)
+            .setContentText(content)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .setContentIntent(pendingIntent)
             .setAutoCancel(true)
+            .setContentIntent(pendingIntent)
 
-        with(NotificationManagerCompat.from(context)) {
-            try {
-                notify(notification.id.hashCode(), builder.build())
-            } catch (e: SecurityException) {
-                Timber.e(e, "Notification permission not granted")
-            }
+        val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
+        try {
+            notificationManager.notify(notificationId, builder.build())
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to show notification")
         }
     }
 
     fun scheduleReminder(notificationId: String, title: String, content: String, delayInMinutes: Long) {
         val data = workDataOf(
-            KEY_NOTIFICATION_ID to notificationId,
-            KEY_NOTIFICATION_TITLE to title,
-            KEY_NOTIFICATION_CONTENT to content
+            Constants.KEY_NOTIFICATION_ID to notificationId,
+            Constants.KEY_NOTIFICATION_TITLE to title,
+            Constants.KEY_NOTIFICATION_CONTENT to content
         )
 
         val reminderRequest = OneTimeWorkRequestBuilder<NotificationWorker>()
@@ -101,10 +160,12 @@ class NotificationService @Inject constructor(
             .setInitialDelay(delayInMinutes, TimeUnit.MINUTES)
             .build()
 
+        val workManager = WorkManager.getInstance(this)
         workManager.enqueue(reminderRequest)
     }
 
     fun cancelScheduledReminder(notificationId: String) {
+        val workManager = WorkManager.getInstance(this)
         workManager.cancelAllWorkByTag(notificationId)
     }
 
@@ -116,23 +177,11 @@ class NotificationService @Inject constructor(
         val currentList = _notifications.value.toMutableList()
         val index = currentList.indexOfFirst { it.id == notificationId }
         if (index != -1) {
-            val updatedNotification = currentList[index].copy(isRead = true)
+            // Create a copy with updated isRead status
+            val notification = currentList[index]
+            val updatedNotification = notification.copy(read = true)
             currentList[index] = updatedNotification
             _notifications.value = currentList
-        }
-    }
-
-    private fun createNotificationChannel() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            val name = "Project Manager Notifications"
-            val descriptionText = "Notification channel for Project Manager app"
-            val importance = NotificationManager.IMPORTANCE_DEFAULT
-            val channel = NotificationChannel(CHANNEL_ID, name, importance).apply {
-                description = descriptionText
-            }
-            val notificationManager: NotificationManager =
-                context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
-            notificationManager.createNotificationChannel(channel)
         }
     }
 

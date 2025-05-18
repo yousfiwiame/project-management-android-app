@@ -6,14 +6,18 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.input.pointer.*
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
+import com.example.projectmanager.data.model.Task
 import java.util.*
-import kotlin.math.roundToInt
+import kotlin.math.max
+import kotlin.math.min
 
 data class GanttTask(
     val id: String,
@@ -36,50 +40,86 @@ data class GanttChartState(
 
 @Composable
 fun GanttChart(
-    state: GanttChartState,
-    modifier: Modifier = Modifier,
-    onTaskClick: (GanttTask) -> Unit = {}
+    tasks: List<Task>,
+    modifier: Modifier = Modifier
 ) {
-    var scale by remember { mutableStateOf(1f) }
-    var offset by remember { mutableStateOf(Offset.Zero) }
-    val minScale = 0.5f
-    val maxScale = 2f
+    val density = LocalDensity.current
+    val barHeight = with(density) { 30.dp.toPx() }
+    val cornerRadius = with(density) { 4.dp.toPx() }
 
-    BoxWithConstraints(modifier = modifier) {
-        val chartWidth = maxWidth.toPx()
-        val chartHeight = maxHeight.toPx()
+    // Safely get the min and max dates, filtering out null values first
+    val tasksWithDates = tasks.filter { it.startDate != null && it.dueDate != null }
+    if (tasksWithDates.isEmpty()) return
+    
+    val startDate = tasksWithDates.minByOrNull { it.startDate!!.time }?.startDate ?: return
+    val endDate = tasksWithDates.maxByOrNull { it.dueDate!!.time }?.dueDate ?: return
+    val totalDays = ((endDate.time - startDate.time) / (1000 * 60 * 60 * 24)).toInt() + 1
 
-        Canvas(
-            modifier = Modifier
-                .fillMaxSize()
-                .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        scale = (scale * zoom).coerceIn(minScale, maxScale)
-                        offset += pan
-                    }
-                }
-        ) {
-            // Draw background grid
-            drawGrid(state, scale, offset)
+    Canvas(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(IntrinsicSize.Min)
+    ) {
+        val chartWidth = size.width
+        val chartHeight = tasks.size * barHeight * 1.5f
 
-            // Draw timeline
-            drawTimeline(state, scale, offset)
-
-            // Draw tasks
-            state.tasks.forEachIndexed { index, task ->
-                drawTask(
-                    task = task,
-                    index = index,
-                    state = state,
-                    scale = scale,
-                    offset = offset
-                )
+        tasksWithDates.forEachIndexed { index, task ->
+            // Safe null checks for task.startDate and task.dueDate
+            val taskStart = task.startDate?.let { ((it.time - startDate.time) / (1000 * 60 * 60 * 24)).toFloat() } ?: 0f
+            val taskDuration = if (task.startDate != null && task.dueDate != null) {
+                ((task.dueDate!!.time - task.startDate!!.time) / (1000 * 60 * 60 * 24)).toFloat() + 1
+            } else {
+                7f // Default to 1 week if dates are missing
             }
 
-            // Draw dependencies
-            drawDependencies(state, scale, offset)
+            val x = (taskStart / totalDays) * chartWidth
+            val y = index * barHeight * 1.5f
+            val width = (taskDuration / totalDays) * chartWidth
+            val height = barHeight
+
+            // Draw task bar
+            drawRoundRect(
+                color = getTaskColor(task),
+                topLeft = Offset(x, y),
+                size = Size(width, height),
+                cornerRadius = CornerRadius(cornerRadius)
+            )
+
+            // The Task class doesn't have a progress property, so we can estimate from completion status
+            if (task.isCompleted) {
+                drawRoundRect(
+                    color = getProgressColor(task),
+                    topLeft = Offset(x, y),
+                    size = Size(width, height), // Full width if completed
+                    cornerRadius = CornerRadius(cornerRadius)
+                )
+            }
         }
     }
+}
+
+private fun getTaskColor(task: Task): Color {
+    return when {
+        task.isCompleted -> Color(0xFF4CAF50) // Green
+        task.isOverdue -> Color(0xFFF44336) // Red
+        else -> Color(0xFF6200EE) // Using a fixed purple color instead of MaterialTheme
+    }
+}
+
+private fun getProgressColor(task: Task): Color {
+    return when {
+        task.isCompleted -> Color(0xFFA5D6A7) // Light Green
+        task.isOverdue -> Color(0xFFEF9A9A) // Light Red
+        else -> Color(0xFF3700B3) // Using a fixed darker purple color
+    }
+}
+
+@Composable
+fun GanttChartItem(
+    tasks: List<Task>,
+    modifier: Modifier = Modifier
+) {
+    GanttChart(tasks = tasks, modifier = modifier)
 }
 
 private fun DrawScope.drawGrid(
@@ -156,7 +196,7 @@ private fun DrawScope.drawTask(
 
     // Draw task background
     drawRoundRect(
-        color = task.color ?: MaterialTheme.colorScheme.primary,
+        color = task.color ?: Color.Blue,
         topLeft = Offset(x, y + height * 0.1f),
         size = Size(width, height),
         cornerRadius = CornerRadius(4f, 4f),
@@ -165,7 +205,7 @@ private fun DrawScope.drawTask(
 
     // Draw progress bar
     drawRoundRect(
-        color = task.color ?: MaterialTheme.colorScheme.primary,
+        color = task.color ?: Color.Blue,
         topLeft = Offset(x, y + height * 0.1f),
         size = Size(width * task.progress, height),
         cornerRadius = CornerRadius(4f, 4f)

@@ -9,24 +9,18 @@ data class TimeEntry(
     @DocumentId
     val id: String = "",
     @get:PropertyName("user_id")
-    @set:PropertyName("user_id")
     val userId: String = "",
     @get:PropertyName("project_id")
-    @set:PropertyName("project_id")
     val projectId: String = "",
     @get:PropertyName("task_id")
-    @set:PropertyName("task_id")
     val taskId: String? = null,
     val description: String = "",
     @get:PropertyName("start_time")
-    @set:PropertyName("start_time")
     val startTime: Date = Date(),
     @get:PropertyName("end_time")
-    @set:PropertyName("end_time")
     val endTime: Date? = null,
     val duration: Long = 0, // Duration in minutes
     @get:PropertyName("is_billable")
-    @set:PropertyName("is_billable")
     val isBillable: Boolean = true,
     val tags: List<String> = emptyList(),
     @ServerTimestamp
@@ -37,13 +31,10 @@ data class TimeEntry(
 
 data class TimeTrackingSummary(
     @get:PropertyName("total_duration")
-    @set:PropertyName("total_duration")
     val totalDuration: Long = 0, // Total duration in minutes
     @get:PropertyName("billable_duration")
-    @set:PropertyName("billable_duration")
     val billableDuration: Long = 0,
     @get:PropertyName("entry_count")
-    @set:PropertyName("entry_count")
     val entryCount: Int = 0,
     val tags: Map<String, Long> = emptyMap() // Tag to duration mapping
 ) 

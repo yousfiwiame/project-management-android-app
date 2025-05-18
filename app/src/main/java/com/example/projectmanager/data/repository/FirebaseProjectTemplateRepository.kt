@@ -23,7 +23,7 @@ class FirebaseProjectTemplateRepository @Inject constructor(
 
     override suspend fun getTemplates(): Flow<Resource<List<ProjectTemplate>>> = flow {
         try {
-            emit(Resource.Loading())
+            emit(Resource.Loading)
             val snapshot = templatesCollection.get().await()
             val templates = snapshot.documents.mapNotNull { it.toObject<ProjectTemplate>() }
             emit(Resource.Success(templates))
@@ -74,46 +74,28 @@ class FirebaseProjectTemplateRepository @Inject constructor(
 
     override suspend fun createTemplateFromProject(projectId: String): Resource<ProjectTemplate> {
         return try {
-            // Get the project
-            when (val projectResult = projectRepository.getProject(projectId)) {
+            val projectResult = projectRepository.get(projectId)
+            when (projectResult) {
                 is Resource.Success -> {
-                    val project = projectResult.data
-                    
-                    // Convert project tasks to task templates
-                    val taskTemplates = project.tasks.map { task ->
-                        TaskTemplate(
-                            title = task.title,
-                            description = task.description,
-                            priority = task.priority,
-                            estimatedHours = task.estimatedHours ?: 0f,
-                            dependencies = task.dependencies.map { it.dependentTaskId },
-                            order = task.order
-                        )
+                    // Fetch tasks from the project's subcollection
+                    val tasksSnapshot = firestore.collection("projects")
+                        .document(projectId)
+                        .collection("tasks")
+                        .get()
+                        .await()
+                    val tasks = tasksSnapshot.documents.mapNotNull {
+                        it.toObject(TaskTemplate::class.java)
                     }
 
-                    // Convert project milestones to milestone templates
-                    val milestoneTemplates = project.milestones.map { milestone ->
-                        MilestoneTemplate(
-                            title = milestone.title,
-                            description = milestone.description,
-                            relativeDeadline = 0 // Calculate based on project start date
-                        )
-                    }
-
-                    // Create the template
                     val template = ProjectTemplate(
-                        name = "${project.name} Template",
-                        description = project.description,
-                        category = project.tags.firstOrNull() ?: "",
-                        tasks = taskTemplates,
-                        milestones = milestoneTemplates,
-                        estimatedDuration = project.estimatedHours.toInt() / 8 // Convert hours to days
+                        name = projectResult.data.name,
+                        description = projectResult.data.description,
+                        tasks = tasks
                     )
-
                     createTemplate(template)
                 }
-                is Resource.Error -> Resource.Error(projectResult.message ?: "Failed to load project")
-                else -> Resource.Error("Failed to load project")
+                is Resource.Error -> Resource.Error(projectResult.message)
+                is Resource.Loading -> Resource.Error("Unexpected loading state")
             }
         } catch (e: Exception) {
             Resource.Error(e.message ?: "Failed to create template from project")

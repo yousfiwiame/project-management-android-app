@@ -83,7 +83,7 @@ fun ProjectListItem(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun TaskListItem(
+fun BasicTaskListItem(
     task: Task,
     onClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -163,11 +163,14 @@ fun StatusChip(
         leadingIcon = {
             Icon(
                 imageVector = when (status) {
-                    ProjectStatus.PLANNING -> Icons.Default.Edit
+                    ProjectStatus.NOT_STARTED -> Icons.Default.Edit
                     ProjectStatus.IN_PROGRESS -> Icons.Default.PlayArrow
                     ProjectStatus.ON_HOLD -> Icons.Default.Pause
                     ProjectStatus.COMPLETED -> Icons.Default.Done
                     ProjectStatus.CANCELLED -> Icons.Default.Close
+                    ProjectStatus.NOT_STARTED -> Icons.Default.HourglassEmpty
+                    ProjectStatus.ARCHIVED -> Icons.Default.Archive
+                    else -> Icons.Default.Info
                 },
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
@@ -191,6 +194,7 @@ fun StatusChip(
                     TaskStatus.REVIEW -> Icons.Default.RateReview
                     TaskStatus.COMPLETED -> Icons.Default.Done
                     TaskStatus.BLOCKED -> Icons.Default.Block
+                    TaskStatus.CANCELLED -> Icons.Default.Close
                 },
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
@@ -212,6 +216,7 @@ fun PriorityChip(
                     Priority.HIGH -> Icons.Default.PriorityHigh
                     Priority.MEDIUM -> Icons.Default.Sort
                     Priority.LOW -> Icons.Default.LowPriority
+                    Priority.URGENT -> Icons.Default.Warning
                 },
                 contentDescription = null,
                 modifier = Modifier.size(16.dp)
@@ -222,6 +227,7 @@ fun PriorityChip(
                 Priority.HIGH -> MaterialTheme.colorScheme.error
                 Priority.MEDIUM -> MaterialTheme.colorScheme.tertiary
                 Priority.LOW -> MaterialTheme.colorScheme.primary
+                Priority.URGENT -> MaterialTheme.colorScheme.error
             }
         )
     )

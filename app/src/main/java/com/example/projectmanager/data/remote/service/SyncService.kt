@@ -5,7 +5,7 @@ import androidx.work.*
 import com.example.projectmanager.data.repository.ProjectRepository
 import com.example.projectmanager.data.repository.TaskRepository
 import com.example.projectmanager.data.repository.UserRepository
-import com.example.projectmanager.service.SyncWorker
+import com.example.projectmanager.data.remote.service.SyncWorker
 import com.example.projectmanager.util.Constants
 import com.example.projectmanager.util.NetworkUtils
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -49,7 +49,7 @@ class SyncService @Inject constructor(
         _syncState.value = SyncState.IN_PROGRESS
 
         // Unique work ensures we don't stack multiple sync operations
-        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+        val syncWorkRequest = OneTimeWorkRequest.Builder(SyncWorker::class.java)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -88,7 +88,7 @@ class SyncService @Inject constructor(
     }
 
     fun scheduleSyncFor(entityType: String, entityId: String) {
-        val syncWorkRequest = OneTimeWorkRequestBuilder<SyncWorker>()
+        val syncWorkRequest = OneTimeWorkRequest.Builder(SyncWorker::class.java)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.CONNECTED)
@@ -146,8 +146,8 @@ class SyncService @Inject constructor(
     }
 
     private fun setupPeriodicSync() {
-        val periodicSyncRequest = PeriodicWorkRequestBuilder<SyncWorker>(
-            SYNC_INTERVAL_HOURS, TimeUnit.HOURS
+        val periodicSyncRequest = PeriodicWorkRequest.Builder(
+            SyncWorker::class.java, SYNC_INTERVAL_HOURS, TimeUnit.HOURS
         )
             .setConstraints(
                 Constraints.Builder()

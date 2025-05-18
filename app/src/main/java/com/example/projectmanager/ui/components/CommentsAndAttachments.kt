@@ -23,7 +23,10 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import com.example.projectmanager.data.model.Comment
 import com.example.projectmanager.data.model.FileAttachment
-import com.example.projectmanager.data.model.AttachmentType
+import com.example.projectmanager.util.AttachmentType
+import com.example.projectmanager.util.formatDate
+import com.example.projectmanager.util.formatDateFromTimestamp
+import com.example.projectmanager.util.formatFileSize
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -172,9 +175,9 @@ fun CommentItem(
                             text = comment.userId,
                             style = MaterialTheme.typography.titleSmall
                         )
-                        comment.timestamp?.let {
+                        comment.createdAt?.let {
                             Text(
-                                text = formatDate(it),
+                                text = formatDateFromTimestamp(it),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -187,14 +190,14 @@ fun CommentItem(
             }
 
             Spacer(modifier = Modifier.height(8.dp))
-            Text(text = comment.text)
+            Text(text = comment.content)
 
-            if (comment.attachments.isNotEmpty()) {
+            if (comment.attachmentIds.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    comment.attachments.forEach { attachmentUrl ->
+                    comment.attachmentIds.forEach { attachmentId ->
                         AssistChip(
                             onClick = { /* Open attachment */ },
                             label = { Text("Attachment") },
@@ -220,17 +223,30 @@ fun AttachmentsList(
     onDeleteAttachment: (FileAttachment) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    LazyColumn(
-        modifier = modifier,
-        contentPadding = PaddingValues(16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        items(attachments) { attachment ->
-            AttachmentItem(
-                attachment = attachment,
-                onDownload = { onDownloadAttachment(attachment) },
-                onDelete = { onDeleteAttachment(attachment) }
+    if (attachments.isEmpty()) {
+        Box(
+            modifier = modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "No attachments",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    } else {
+        LazyColumn(
+            modifier = modifier,
+            contentPadding = PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            items(attachments) { attachment ->
+                AttachmentItem(
+                    attachment = attachment,
+                    onDownload = { onDownloadAttachment(attachment) },
+                    onDelete = { onDeleteAttachment(attachment) }
+                )
+            }
         }
     }
 }
@@ -278,6 +294,7 @@ fun AttachmentItem(
                             AttachmentType.AUDIO -> Icons.Default.AudioFile
                             AttachmentType.ARCHIVE -> Icons.Default.FolderZip
                             AttachmentType.OTHER -> Icons.Default.InsertDriveFile
+                            else -> Icons.Default.InsertDriveFile
                         },
                         contentDescription = null,
                         modifier = Modifier.size(48.dp)
@@ -358,6 +375,11 @@ private fun formatDate(date: Date): String {
     return formatter.format(date)
 }
 
+private fun formatDateFromTimestamp(timestamp: Long): String {
+    val date = Date(timestamp)
+    return formatDate(date)
+}
+
 private fun formatFileSize(size: Long): String {
     val units = arrayOf("B", "KB", "MB", "GB", "TB")
     var value = size.toDouble()
@@ -367,4 +389,4 @@ private fun formatFileSize(size: Long): String {
         unitIndex++
     }
     return "%.1f %s".format(value, units[unitIndex])
-} 
+}

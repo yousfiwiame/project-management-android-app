@@ -2,11 +2,14 @@ package com.example.projectmanager.data.local.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverters
+import com.example.projectmanager.data.local.Converters
 import com.example.projectmanager.data.model.User
 import com.example.projectmanager.data.model.UserPreferences
 import com.example.projectmanager.data.model.UserRole
 
 @Entity(tableName = "users")
+@TypeConverters(Converters::class)
 data class UserEntity(
     @PrimaryKey
     val id: String,

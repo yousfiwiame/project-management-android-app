@@ -46,4 +46,16 @@ abstract class RepositoryModule {
     abstract fun bindNotificationRepository(
         notificationRepositoryImpl: NotificationRepositoryImpl
     ): NotificationRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindChatRepository(
+        firebaseChatRepository: FirebaseChatRepository
+    ): ChatRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindProjectTemplateRepository(
+        firebaseProjectTemplateRepository: FirebaseProjectTemplateRepository
+    ): ProjectTemplateRepository
 }

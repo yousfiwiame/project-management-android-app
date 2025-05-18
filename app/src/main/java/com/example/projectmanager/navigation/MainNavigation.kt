@@ -7,9 +7,9 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.navArgument
 import com.example.projectmanager.ui.home.HomeScreen
-import com.example.projectmanager.ui.projects.ProjectScreen
+import com.example.projectmanager.ui.project.ProjectScreen
 import com.example.projectmanager.ui.projects.ProjectsScreen
-import com.example.projectmanager.ui.tasks.TaskScreen
+import com.example.projectmanager.ui.task.TaskScreen
 import com.example.projectmanager.ui.tasks.TasksScreen
 import com.example.projectmanager.ui.profile.ProfileScreen
 import com.example.projectmanager.ui.settings.SettingsScreen
@@ -18,7 +18,8 @@ import com.example.projectmanager.navigation.AppNavigatorImpl.Companion as Route
 @Composable
 fun MainNavigation(
     navController: NavHostController,
-    startDestination: String = Routes.HOME_GRAPH_ROUTE
+    startDestination: String = Routes.HOME_GRAPH_ROUTE,
+    appNavigator: AppNavigator
 ) {
     NavHost(
         navController = navController,
@@ -36,7 +37,7 @@ fun MainNavigation(
 
         // Home Graph
         composable(Routes.HOME_GRAPH_ROUTE) {
-            HomeScreen()
+            HomeScreen(appNavigator = appNavigator)
         }
 
         // Projects
@@ -86,7 +87,17 @@ fun MainNavigation(
 
         // Settings
         composable(Routes.SETTINGS_ROUTE) {
-            SettingsScreen()
+            SettingsScreen(
+                onNavigateBack = {
+                    navController.navigateUp()
+                },
+                onSignOut = {
+                    // Force navigation to auth screen after sign out
+                    navController.navigate(AUTH_GRAPH_ROUTE) {
+                        popUpTo(0) { inclusive = true }
+                    }
+                }
+            )
         }
 
         // Create Project

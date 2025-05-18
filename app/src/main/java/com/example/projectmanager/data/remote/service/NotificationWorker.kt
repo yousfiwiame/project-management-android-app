@@ -4,36 +4,38 @@ import android.content.Context
 import androidx.hilt.work.HiltWorker
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
-import com.example.projectmanager.data.model.Notification
-import com.example.projectmanager.data.remote.service.NotificationService
+import com.example.projectmanager.data.model.NotificationType
+import com.example.projectmanager.util.Constants.KEY_NOTIFICATION_CONTENT
+import com.example.projectmanager.util.Constants.KEY_NOTIFICATION_ID
+import com.example.projectmanager.util.Constants.KEY_NOTIFICATION_TITLE
 import dagger.assisted.Assisted
 import dagger.assisted.AssistedInject
+import timber.log.Timber
 import java.util.Date
-import java.util.UUID
 
 @HiltWorker
 class NotificationWorker @AssistedInject constructor(
     @Assisted appContext: Context,
-    @Assisted params: WorkerParameters,
+    @Assisted workerParams: WorkerParameters,
     private val notificationService: NotificationService
-) : CoroutineWorker(appContext, params) {
+) : CoroutineWorker(appContext, workerParams) {
 
     override suspend fun doWork(): Result {
-        val notificationId = inputData.getString(NotificationService.KEY_NOTIFICATION_ID) ?: UUID.randomUUID().toString()
-        val title = inputData.getString(NotificationService.KEY_NOTIFICATION_TITLE) ?: "Reminder"
-        val content = inputData.getString(NotificationService.KEY_NOTIFICATION_CONTENT) ?: "You have a pending task"
+        try {
+            val notificationId = inputData.getString(KEY_NOTIFICATION_ID) ?: return Result.failure()
+            val title = inputData.getString(KEY_NOTIFICATION_TITLE) ?: return Result.failure()
+            val content = inputData.getString(KEY_NOTIFICATION_CONTENT) ?: return Result.failure()
 
-        val notification = Notification(
-            id = notificationId,
-            title = title,
-            content = content,
-            type = "REMINDER",
-            timestamp = Date(),
-            isRead = false
-        )
+            notificationService.showNotification(
+                notificationId.hashCode(),
+                title,
+                content
+            )
 
-        notificationService.showNotification(notification)
-
-        return Result.success()
+            return Result.success()
+        } catch (e: Exception) {
+            Timber.e(e, "Failed to show notification")
+            return Result.failure()
+        }
     }
 }

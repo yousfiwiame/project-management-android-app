@@ -20,6 +20,9 @@ import com.example.projectmanager.ui.components.ProjectDatePicker
 import com.example.projectmanager.ui.components.ProjectListItem
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -31,20 +34,24 @@ fun ProjectsScreen(
     var showCreateDialog by remember { mutableStateOf(false) }
     var showDeleteConfirmation by remember { mutableStateOf<String?>(null) }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadProjects()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Projects") },
                 actions = {
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    IconButton(onClick = { showCreateDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Project")
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showCreateDialog = true }) {
-                Icon(Icons.Default.Add, contentDescription = "Create Project")
+                Icon(Icons.Default.Add, contentDescription = "Add Project")
             }
         }
     ) { padding ->
@@ -53,69 +60,74 @@ fun ProjectsScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (uiState.projects.isEmpty()) {
-                EmptyProjectsMessage(
-                    modifier = Modifier.align(Alignment.Center),
-                    onCreateClick = { showCreateDialog = true }
-                )
-            } else {
-                ProjectList(
-                    projects = uiState.projects,
-                    onProjectClick = onProjectClick,
-                    onDeleteProject = { projectId ->
-                        showDeleteConfirmation = projectId
-                    }
-                )
-            }
-
-            // Error snackbar
-            uiState.error?.let { error ->
-                Snackbar(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                ) {
-                    Text(error)
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
-            }
-        }
-
-        if (showCreateDialog) {
-            CreateProjectDialog(
-                onDismiss = { showCreateDialog = false },
-                onCreateProject = { project ->
-                    viewModel.createProject(project)
-                    showCreateDialog = false
+                uiState.error != null -> {
+                    Text(
+                        text = uiState.error!!,
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
-            )
-        }
-
-        showDeleteConfirmation?.let { projectId ->
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirmation = null },
-                title = { Text("Delete Project") },
-                text = { Text("Are you sure you want to delete this project? This action cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.deleteProject(projectId)
-                            showDeleteConfirmation = null
+                uiState.projects.isEmpty() -> {
+                    EmptyProjectsMessage(
+                        modifier = Modifier.align(Alignment.Center),
+                        onCreateClick = { showCreateDialog = true }
+                    )
+                }
+                else -> {
+                    ProjectList(
+                        projects = uiState.projects,
+                        onProjectClick = onProjectClick,
+                        onDeleteProject = { projectId -> 
+                            showDeleteConfirmation = projectId
                         }
-                    ) {
-                        Text("Delete")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteConfirmation = null }) {
-                        Text("Cancel")
-                    }
+                    )
                 }
-            )
+            }
         }
+    }
+
+    // Create project dialog
+    if (showCreateDialog) {
+        CreateProjectDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreateProject = { project ->
+                viewModel.createProject(project)
+                showCreateDialog = false
+            }
+        )
+    }
+
+    // Delete confirmation dialog
+    showDeleteConfirmation?.let { projectId ->
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = null },
+            title = { Text("Delete Project") },
+            text = { Text("Are you sure you want to delete this project? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteProject(projectId)
+                        showDeleteConfirmation = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
@@ -127,27 +139,27 @@ fun ProjectList(
     onDeleteProject: (String) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        items(
-            items = projects,
-            key = { it.id }
-        ) { project ->
-            SwipeToDismiss(
-                state = rememberDismissState(
-                    confirmValueChange = { dismissValue ->
-                        if (dismissValue == DismissValue.DismissedToEnd || 
-                            dismissValue == DismissValue.DismissedToStart) {
-                            onDeleteProject(project.id)
-                            true
-                        } else {
-                            false
-                        }
+        items(projects, key = { it.id }) { project ->
+            val dismissState = rememberSwipeToDismissBoxState(
+                positionalThreshold = { _ -> 0.5f },
+                confirmValueChange = { dismissValue ->
+                    if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                        onDeleteProject(project.id)
+                        true
+                    } else {
+                        false
                     }
-                ),
-                background = {
+                }
+            )
+
+            SwipeToDismissBox(
+                state = dismissState,
+                enableDismissFromStartToEnd = false,
+                enableDismissFromEndToStart = true,
+                backgroundContent = {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.error
@@ -166,7 +178,7 @@ fun ProjectList(
                         }
                     }
                 },
-                dismissContent = {
+                content = {
                     ProjectListItem(
                         project = project,
                         onClick = { onProjectClick(project.id) }

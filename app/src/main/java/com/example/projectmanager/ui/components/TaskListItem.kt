@@ -114,6 +114,7 @@ fun TaskStatusChip(
         TaskStatus.REVIEW -> MaterialTheme.colorScheme.tertiary to MaterialTheme.colorScheme.onTertiary
         TaskStatus.COMPLETED -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
         TaskStatus.BLOCKED -> MaterialTheme.colorScheme.error to MaterialTheme.colorScheme.onError
+        TaskStatus.CANCELLED -> MaterialTheme.colorScheme.surfaceVariant to MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     Surface(

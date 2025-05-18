@@ -34,30 +34,39 @@ class TaskDetailsViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
-            taskRepository.getTask(taskId, projectId).collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                task = result.data,
-                                isLoading = false,
-                                error = null
-                            )
+            try {
+                taskRepository.getTaskById(taskId).collect { result ->
+                    when (result) {
+                        is Resource.Success<Task> -> {
+                            _uiState.update {
+                                it.copy(
+                                    task = result.data,
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
+                        }
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = result.message
+                                )
+                            }
+                        }
+                        is Resource.Loading -> {
+                            _uiState.update {
+                                it.copy(isLoading = true)
+                            }
                         }
                     }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message
-                            )
-                        }
-                    }
-                    is Resource.Loading -> {
-                        _uiState.update {
-                            it.copy(isLoading = true)
-                        }
-                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update {
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to load task"
+                    )
                 }
             }
         }
@@ -107,25 +116,34 @@ class TaskDetailsViewModel @Inject constructor(
             uiState.value.task?.let { task ->
                 _uiState.update { it.copy(isLoading = true) }
 
-                when (val result = taskRepository.deleteTask(task.id, task.projectId)) {
-                    is Resource.Success -> {
-                        _uiState.update {
-                            it.copy(
-                                task = null,
-                                isLoading = false,
-                                error = null
-                            )
+                try {
+                    when (val result = taskRepository.deleteTask(task.id)) {
+                        is Resource.Success -> {
+                            _uiState.update {
+                                it.copy(
+                                    task = null,
+                                    isLoading = false,
+                                    error = null
+                                )
+                            }
                         }
-                    }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message
-                            )
+                        is Resource.Error -> {
+                            _uiState.update {
+                                it.copy(
+                                    isLoading = false,
+                                    error = result.message
+                                )
+                            }
                         }
+                        else -> {}
                     }
-                    else -> {}
+                } catch (e: Exception) {
+                    _uiState.update {
+                        it.copy(
+                            isLoading = false,
+                            error = e.message ?: "Failed to delete task"
+                        )
+                    }
                 }
             }
         }
@@ -136,9 +154,9 @@ class TaskDetailsViewModel @Inject constructor(
             uiState.value.task?.let { task ->
                 val comment = Comment(
                     id = UUID.randomUUID().toString(),
-                    text = text,
+                    content = text,
                     userId = getCurrentUserId(),
-                    timestamp = Date()
+                    createdAt = Date().time
                 )
 
                 val updatedTask = task.copy(

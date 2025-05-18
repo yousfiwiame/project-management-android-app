@@ -11,7 +11,8 @@ import androidx.navigation.compose.rememberNavController
 import com.example.projectmanager.navigation.AppNavigator
 import com.example.projectmanager.navigation.AppNavigatorImpl
 import com.example.projectmanager.navigation.MainNavigation
-import com.example.projectmanager.ui.theme.ProjectManagerTheme
+import com.example.projectmanager.ui.theme.ProjectmanagerTheme
+
 import dagger.hilt.android.AndroidEntryPoint
 import javax.inject.Inject
 
@@ -24,7 +25,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
-            ProjectManagerTheme {
+            ProjectmanagerTheme {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
@@ -38,7 +39,8 @@ class MainActivity : ComponentActivity() {
                             "home"
                         } else {
                             "auth"
-                        }
+                        },
+                        appNavigator = appNavigator
                     )
                 }
             }

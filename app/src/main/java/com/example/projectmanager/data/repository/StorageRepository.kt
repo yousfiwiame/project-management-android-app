@@ -4,6 +4,8 @@ import com.example.projectmanager.data.model.FileAttachment
 import com.example.projectmanager.data.remote.firebase.FirebaseStorageSource
 import com.example.projectmanager.data.remote.firebase.FirestoreFileSource
 import java.io.File
+import java.util.Date
+import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -17,16 +19,17 @@ class StorageRepository @Inject constructor(
         val downloadUrl = storageSource.uploadFile(file, path)
 
         val fileAttachment = FileAttachment(
+            id = UUID.randomUUID().toString(),
             name = file.name,
-            url = downloadUrl,
+            downloadUrl = downloadUrl,
             mimeType = getMimeType(file),
             size = file.length(),
-            uploaderId = userId,
-            uploadedAt = System.currentTimeMillis(),
+            uploadedById = userId,
+            uploadedAt = Date(),
             projectId = projectId
         )
 
-        val fileId = fileSource.saveFileMetadata(fileAttachment)
+        val fileId = fileSource.addFile(fileAttachment).getOrThrow().id
         return fileAttachment.copy(id = fileId)
     }
 
@@ -35,17 +38,18 @@ class StorageRepository @Inject constructor(
         val downloadUrl = storageSource.uploadFile(file, path)
 
         val fileAttachment = FileAttachment(
+            id = UUID.randomUUID().toString(),
             name = file.name,
-            url = downloadUrl,
+            downloadUrl = downloadUrl,
             mimeType = getMimeType(file),
             size = file.length(),
-            uploaderId = userId,
-            uploadedAt = System.currentTimeMillis(),
+            uploadedById = userId,
+            uploadedAt = Date(),
             projectId = projectId,
             taskId = taskId
         )
 
-        val fileId = fileSource.saveFileMetadata(fileAttachment)
+        val fileId = fileSource.addFile(fileAttachment).getOrThrow().id
         return fileAttachment.copy(id = fileId)
     }
 
@@ -63,7 +67,7 @@ class StorageRepository @Inject constructor(
         storageSource.deleteFile(path)
 
         // Delete metadata
-        fileSource.deleteFileMetadata(fileAttachment.id)
+        fileSource.deleteFile(fileAttachment.id)
     }
 
     private fun getMimeType(file: File): String {

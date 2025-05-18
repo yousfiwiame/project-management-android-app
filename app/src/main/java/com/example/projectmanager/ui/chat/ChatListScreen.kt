@@ -16,6 +16,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.projectmanager.data.model.Chat
+import com.example.projectmanager.data.model.ChatType
 import com.example.projectmanager.ui.components.EmptyStateView
 import com.example.projectmanager.ui.components.LoadingView
 import java.text.SimpleDateFormat
@@ -125,9 +126,9 @@ fun ChatItem(
             ) {
                 Icon(
                     imageVector = when (chat.type) {
-                        Chat.ChatType.DIRECT -> Icons.Default.Person
-                        Chat.ChatType.GROUP -> Icons.Default.Group
-                        Chat.ChatType.PROJECT -> Icons.Default.Folder
+                        ChatType.DIRECT -> Icons.Default.Person
+                        ChatType.GROUP -> Icons.Default.Group
+                        ChatType.PROJECT -> Icons.Default.Folder
                     },
                     contentDescription = null,
                     modifier = Modifier
@@ -144,11 +145,7 @@ fun ChatItem(
                 modifier = Modifier.weight(1f)
             ) {
                 Text(
-                    text = chat.name.ifEmpty {
-                        chat.participants
-                            .filter { it != currentUserId }
-                            .joinToString(", ")
-                    },
+                    text = chat.name ?: "",
                     style = MaterialTheme.typography.titleMedium
                 )
 

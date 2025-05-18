@@ -24,6 +24,9 @@ class AuthViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(AuthUiState())
     val uiState: StateFlow<AuthUiState> = _uiState.asStateFlow()
+    
+    private val _authState = MutableStateFlow<Resource<User>>(Resource.loading())
+    val authState: StateFlow<Resource<User>> = _authState.asStateFlow()
 
     init {
         observeAuthState()
@@ -78,6 +81,7 @@ class AuthViewModel @Inject constructor(
     fun signIn(email: String, password: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            _authState.value = Resource.loading()
             try {
                 when (val result = userRepository.signIn(email, password)) {
                     is Resource.Success -> {
@@ -89,6 +93,7 @@ class AuthViewModel @Inject constructor(
                                 error = null
                             )
                         }
+                        _authState.value = result
                     }
                     is Resource.Error -> {
                         _uiState.update {
@@ -97,11 +102,13 @@ class AuthViewModel @Inject constructor(
                                 error = result.message
                             )
                         }
+                        _authState.value = result
                     }
                     is Resource.Loading -> {
                         _uiState.update {
                             it.copy(isLoading = true, error = null)
                         }
+                        _authState.value = Resource.loading()
                     }
                 }
             } catch (e: Exception) {
@@ -111,6 +118,7 @@ class AuthViewModel @Inject constructor(
                         error = e.message ?: "Sign in failed"
                     )
                 }
+                _authState.value = Resource.Error(e.message ?: "Sign in failed")
             }
         }
     }
@@ -118,6 +126,7 @@ class AuthViewModel @Inject constructor(
     fun signUp(email: String, password: String, displayName: String) {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true, error = null) }
+            _authState.value = Resource.loading()
             try {
                 when (val result = userRepository.signUp(email, password, displayName)) {
                     is Resource.Success -> {
@@ -129,6 +138,7 @@ class AuthViewModel @Inject constructor(
                                 error = null
                             )
                         }
+                        _authState.value = result
                     }
                     is Resource.Error -> {
                         _uiState.update {
@@ -137,11 +147,13 @@ class AuthViewModel @Inject constructor(
                                 error = result.message
                             )
                         }
+                        _authState.value = result
                     }
                     is Resource.Loading -> {
                         _uiState.update {
                             it.copy(isLoading = true, error = null)
                         }
+                        _authState.value = Resource.loading()
                     }
                 }
             } catch (e: Exception) {
@@ -151,6 +163,7 @@ class AuthViewModel @Inject constructor(
                         error = e.message ?: "Sign up failed"
                     )
                 }
+                _authState.value = Resource.Error(e.message ?: "Sign up failed")
             }
         }
     }

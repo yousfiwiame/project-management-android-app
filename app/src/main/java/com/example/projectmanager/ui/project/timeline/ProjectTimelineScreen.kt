@@ -10,12 +10,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.clickable
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.example.projectmanager.ui.components.GanttChart
 import com.example.projectmanager.ui.components.GanttChartState
 import com.example.projectmanager.ui.components.GanttTask
 import com.example.projectmanager.data.model.Task
+import com.example.projectmanager.data.model.TaskStatus
 import java.util.*
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -106,21 +110,7 @@ fun ProjectTimelineScreen(
 
                         // Gantt chart (right side)
                         GanttChart(
-                            state = GanttChartState(
-                                tasks = uiState.tasks.map { task ->
-                                    GanttTask(
-                                        id = task.id,
-                                        title = task.title,
-                                        startDate = task.startDate ?: Date(),
-                                        endDate = task.dueDate ?: Date(),
-                                        progress = calculateTaskProgress(task),
-                                        dependencies = task.dependencies.map { it.dependentTaskId }
-                                    )
-                                },
-                                startDate = uiState.timelineStartDate,
-                                endDate = uiState.timelineEndDate,
-                                daysToShow = uiState.daysToShow
-                            ),
+                            tasks = uiState.tasks,
                             modifier = Modifier
                                 .weight(0.7f)
                                 .fillMaxHeight()
@@ -220,6 +210,7 @@ fun TaskListItem(
     )
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun FilterDialog(
     currentFilter: TimelineFilter,
@@ -329,18 +320,15 @@ fun SortDialog(
 private fun calculateTaskProgress(task: Task): Float {
     if (task.isCompleted) return 1f
     if (task.checklists.isEmpty()) return 0f
-
     val totalItems = task.checklists.sumOf { it.items.size }
     if (totalItems == 0) return 0f
-
     val completedItems = task.checklists.sumOf { checklist ->
         checklist.items.count { it.isCompleted }
     }
-
     return completedItems.toFloat() / totalItems
 }
 
 private fun formatDate(date: Date): String {
     // Implement date formatting logic
     return date.toString()
-} 
+}

@@ -12,6 +12,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
+// Projex brand colors
+val ProjexBlue = Color(0xFF2D3E50)
+val ProjexTeal = Color(0xFF00B8A9)
+val ProjexLightBlue = Color(0xFF3498DB)
+val ProjexDarkTeal = Color(0xFF006C84)
+
 private val LightColorScheme = lightColorScheme(
     primary = Color(0xFF2196F3),          // Blue
     onPrimary = Color.White,

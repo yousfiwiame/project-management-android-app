@@ -33,9 +33,14 @@ class CommentRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addComment(comment: Comment): String {
-        val commentId = firestoreCommentSource.addComment(comment)
-        commentDao.insertComment(CommentEntity.fromDomain(comment.copy(id = commentId)))
-        return commentId
+        val result = firestoreCommentSource.addComment(comment)
+        if (result.isSuccess) {
+            val commentWithId = result.getOrThrow()
+            commentDao.insertComment(CommentEntity.fromDomain(commentWithId))
+            return commentWithId.id
+        } else {
+            throw result.exceptionOrNull() ?: Exception("Failed to add comment")
+        }
     }
 
     override suspend fun updateComment(comment: Comment) {

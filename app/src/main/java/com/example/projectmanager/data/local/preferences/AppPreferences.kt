@@ -14,6 +14,10 @@ class AppPreferences @Inject constructor(context: Context) {
         get() = prefs.getString(KEY_THEME, "system") ?: "system"
         set(value) = prefs.edit { putString(KEY_THEME, value) }
 
+    var isDarkMode: Boolean
+        get() = prefs.getBoolean(KEY_DARK_MODE, false)
+        set(value) = prefs.edit { putBoolean(KEY_DARK_MODE, value) }
+
     var emailNotifications: Boolean
         get() = prefs.getBoolean(KEY_EMAIL_NOTIFICATIONS, true)
         set(value) = prefs.edit { putBoolean(KEY_EMAIL_NOTIFICATIONS, value) }
@@ -41,6 +45,7 @@ class AppPreferences @Inject constructor(context: Context) {
     companion object {
         private const val PREFS_NAME = "project_manager_prefs"
         private const val KEY_THEME = "theme"
+        private const val KEY_DARK_MODE = "dark_mode"
         private const val KEY_EMAIL_NOTIFICATIONS = "email_notifications"
         private const val KEY_PUSH_NOTIFICATIONS = "push_notifications"
         private const val KEY_DEFAULT_PROJECT_VIEW = "default_project_view"

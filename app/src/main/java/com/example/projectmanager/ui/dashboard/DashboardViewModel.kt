@@ -60,10 +60,15 @@ class DashboardViewModel @Inject constructor(
 
                 // Load project statistics
                 combine(
-                    projectRepository.getAllProjects(),
+                    projectRepository.getAll(),
                     projectRepository.getRecentProjects(limit = 5),
                     taskRepository.getPendingTasks()
-                ) { allProjects, recentProjects, pendingTasks ->
+                ) { allProjectsResource, recentProjects, pendingTasks ->
+                    val allProjects = if (allProjectsResource is Resource.Success) {
+                        allProjectsResource.data
+                    } else {
+                        emptyList()
+                    }
                     val totalProjects = allProjects.size
                     val completedProjects = allProjects.count { it.isCompleted }
                     

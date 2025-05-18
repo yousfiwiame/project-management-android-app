@@ -13,6 +13,7 @@ import javax.inject.Singleton
 
 interface AuthRepository {
     val currentUser: FirebaseUser?
+    fun getCurrentUserId(): String?
     suspend fun signIn(email: String, password: String): Resource<FirebaseUser>
     suspend fun signUp(email: String, password: String, displayName: String): Resource<FirebaseUser>
     suspend fun signOut()
@@ -25,99 +26,3 @@ interface AuthRepository {
     fun isEmailVerified(): Boolean
 }
 
-@Singleton
-class AuthRepositoryImpl @Inject constructor(
-    private val auth: FirebaseAuth,
-    private val firestore: FirebaseFirestore
-) : AuthRepository {
-
-    override val currentUser: FirebaseUser?
-        get() = auth.currentUser
-
-    override suspend fun signIn(email: String, password: String): Resource<FirebaseUser> = try {
-        val result = auth.signInWithEmailAndPassword(email, password).await()
-        result.user?.let {
-            Resource.success(it)
-        } ?: Resource.error("Sign in failed")
-    } catch (e: Exception) {
-        Resource.error(e.message ?: "Sign in failed", e)
-    }
-
-    override suspend fun signUp(
-        email: String,
-        password: String,
-        displayName: String
-    ): Resource<FirebaseUser> = try {
-        val result = auth.createUserWithEmailAndPassword(email, password).await()
-        result.user?.let { firebaseUser ->
-            // Create user profile in Firestore
-            val user = User(
-                id = firebaseUser.uid,
-                email = email,
-                displayName = displayName
-            )
-            firestore.collection("users").document(firebaseUser.uid).set(user).await()
-            // Send email verification
-            firebaseUser.sendEmailVerification().await()
-            Resource.success(firebaseUser)
-        } ?: Resource.error("Sign up failed")
-    } catch (e: Exception) {
-        Resource.error(e.message ?: "Sign up failed", e)
-    }
-
-    override suspend fun signOut() {
-        auth.signOut()
-    }
-
-    override fun getUserFlow(): Flow<Resource<User?>> = flow {
-        emit(Resource.loading())
-        try {
-            auth.currentUser?.let { firebaseUser ->
-                val userDoc = firestore.collection("users").document(firebaseUser.uid).get().await()
-                val user = userDoc.toObject(User::class.java)
-                emit(Resource.success(user))
-            } ?: emit(Resource.success(null))
-        } catch (e: Exception) {
-            emit(Resource.error(e.message ?: "Failed to get user", e))
-        }
-    }
-
-    override suspend fun updateUserProfile(user: User): Resource<User> = try {
-        firestore.collection("users").document(user.id).set(user).await()
-        Resource.success(user)
-    } catch (e: Exception) {
-        Resource.error(e.message ?: "Failed to update profile", e)
-    }
-
-    override suspend fun sendEmailVerification(): Resource<Boolean> = try {
-        auth.currentUser?.let { user ->
-            user.sendEmailVerification().await()
-            Resource.success(true)
-        } ?: Resource.error("No user signed in")
-    } catch (e: Exception) {
-        Resource.error(e.message ?: "Failed to send verification email", e)
-    }
-
-    override suspend fun sendPasswordResetEmail(email: String): Resource<Boolean> = try {
-        auth.sendPasswordResetEmail(email).await()
-        Resource.success(true)
-    } catch (e: Exception) {
-        Resource.error(e.message ?: "Failed to send password reset email", e)
-    }
-
-    override suspend fun verifyPasswordResetCode(code: String): Resource<String> = try {
-        val email = auth.verifyPasswordResetCode(code).await()
-        Resource.success(email)
-    } catch (e: Exception) {
-        Resource.error(e.message ?: "Invalid reset code", e)
-    }
-
-    override suspend fun confirmPasswordReset(code: String, newPassword: String): Resource<Boolean> = try {
-        auth.confirmPasswordReset(code, newPassword).await()
-        Resource.success(true)
-    } catch (e: Exception) {
-        Resource.error(e.message ?: "Failed to reset password", e)
-    }
-
-    override fun isEmailVerified(): Boolean = auth.currentUser?.isEmailVerified ?: false
-}

@@ -18,9 +18,16 @@ import com.example.projectmanager.data.model.Task
 import com.example.projectmanager.data.model.TaskStatus
 import com.example.projectmanager.data.model.Priority
 import com.example.projectmanager.ui.components.ProjectDatePicker
-import com.example.projectmanager.ui.components.TaskListItem
 import java.text.SimpleDateFormat
 import java.util.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.CircleShape
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -33,6 +40,10 @@ fun TasksScreen(
     var showDeleteConfirmation by remember { mutableStateOf<String?>(null) }
     var showFilterSheet by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        viewModel.loadTasks()
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -41,8 +52,8 @@ fun TasksScreen(
                     IconButton(onClick = { showFilterSheet = true }) {
                         Icon(Icons.Default.FilterList, contentDescription = "Filter")
                     }
-                    IconButton(onClick = { viewModel.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                    IconButton(onClick = { showCreateDialog = true }) {
+                        Icon(Icons.Default.Add, contentDescription = "Add Task")
                     }
                 }
             )
@@ -58,80 +69,86 @@ fun TasksScreen(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            if (uiState.isLoading) {
-                CircularProgressIndicator(
-                    modifier = Modifier.align(Alignment.Center)
-                )
-            } else if (uiState.tasks.isEmpty()) {
-                EmptyTasksMessage(
-                    modifier = Modifier.align(Alignment.Center),
-                    onCreateClick = { showCreateDialog = true }
-                )
-            } else {
-                TaskList(
-                    tasks = uiState.tasks,
-                    onTaskClick = onTaskClick,
-                    onDeleteTask = { taskId ->
-                        showDeleteConfirmation = taskId
-                    }
-                )
-            }
-
-            // Error snackbar
-            uiState.error?.let { error ->
-                Snackbar(
-                    modifier = Modifier
-                        .align(Alignment.BottomCenter)
-                        .padding(16.dp)
-                ) {
-                    Text(error)
+            when {
+                uiState.isLoading -> {
+                    CircularProgressIndicator(
+                        modifier = Modifier.align(Alignment.Center)
+                    )
                 }
-            }
-        }
-
-        if (showCreateDialog) {
-            CreateTaskDialog(
-                onDismiss = { showCreateDialog = false },
-                onCreateTask = { task ->
-                    viewModel.createTask(task)
-                    showCreateDialog = false
+                uiState.error != null -> {
+                    Text(
+                        text = uiState.error!!,
+                        modifier = Modifier.align(Alignment.Center),
+                        color = MaterialTheme.colorScheme.error
+                    )
                 }
-            )
-        }
-
-        if (showFilterSheet) {
-            TaskFilterSheet(
-                currentFilter = uiState.filter,
-                onFilterChange = { filter ->
-                    viewModel.updateFilter(filter)
-                    showFilterSheet = false
-                },
-                onDismiss = { showFilterSheet = false }
-            )
-        }
-
-        showDeleteConfirmation?.let { taskId ->
-            AlertDialog(
-                onDismissRequest = { showDeleteConfirmation = null },
-                title = { Text("Delete Task") },
-                text = { Text("Are you sure you want to delete this task? This action cannot be undone.") },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.deleteTask(taskId)
-                            showDeleteConfirmation = null
+                uiState.tasks.isEmpty() -> {
+                    EmptyTasksMessage(
+                        modifier = Modifier.align(Alignment.Center),
+                        onCreateClick = { showCreateDialog = true }
+                    )
+                }
+                else -> {
+                    TaskList(
+                        tasks = uiState.tasks,
+                        onTaskClick = onTaskClick,
+                        onDeleteTask = { taskId -> 
+                            showDeleteConfirmation = taskId
                         }
-                    ) {
-                        Text("Delete")
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showDeleteConfirmation = null }) {
-                        Text("Cancel")
-                    }
+                    )
                 }
-            )
+            }
         }
+    }
+
+    // Create task dialog
+    if (showCreateDialog) {
+        CreateTaskDialog(
+            onDismiss = { showCreateDialog = false },
+            onCreateTask = { task ->
+                viewModel.createTask(task)
+                showCreateDialog = false
+            }
+        )
+    }
+
+    // Delete confirmation dialog
+    showDeleteConfirmation?.let { taskId ->
+        AlertDialog(
+            onDismissRequest = { showDeleteConfirmation = null },
+            title = { Text("Delete Task") },
+            text = { Text("Are you sure you want to delete this task? This action cannot be undone.") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteTask(taskId)
+                        showDeleteConfirmation = null
+                    },
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDeleteConfirmation = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
+    // Filter sheet
+    if (showFilterSheet) {
+        TaskFilterSheet(
+            currentFilter = uiState.filter,
+            onFilterChange = { filter ->
+                viewModel.updateFilter(filter)
+                showFilterSheet = false
+            },
+            onDismiss = { showFilterSheet = false }
+        )
     }
 }
 
@@ -143,7 +160,6 @@ fun TaskList(
     onDeleteTask: (String) -> Unit
 ) {
     LazyColumn(
-        modifier = Modifier.fillMaxSize(),
         contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
@@ -151,19 +167,23 @@ fun TaskList(
             items = tasks,
             key = { it.id }
         ) { task ->
-            SwipeToDismiss(
-                state = rememberDismissState(
-                    confirmValueChange = { dismissValue ->
-                        if (dismissValue == DismissValue.DismissedToEnd || 
-                            dismissValue == DismissValue.DismissedToStart) {
-                            onDeleteTask(task.id)
-                            true
-                        } else {
-                            false
-                        }
+            val dismissState = rememberSwipeToDismissBoxState(
+                positionalThreshold = { _ -> 0.5f },
+                confirmValueChange = { dismissValue ->
+                    if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                        onDeleteTask(task.id)
+                        true
+                    } else {
+                        false
                     }
-                ),
-                background = {
+                }
+            )
+
+            SwipeToDismissBox(
+                state = dismissState,
+                enableDismissFromStartToEnd = false,
+                enableDismissFromEndToStart = true,
+                backgroundContent = {
                     Surface(
                         modifier = Modifier.fillMaxSize(),
                         color = MaterialTheme.colorScheme.error
@@ -182,11 +202,82 @@ fun TaskList(
                         }
                     }
                 },
-                dismissContent = {
-                    TaskListItem(
-                        task = task,
-                        onClick = { onTaskClick(task.id) }
-                    )
+                content = {
+                    // Using a simple Card instead of TaskListItem since we need to implement it
+                    Card(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onTaskClick(task.id) }
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(16.dp)
+                        ) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Priority indicator
+                                Box(
+                                    modifier = Modifier
+                                        .size(12.dp)
+                                        .background(
+                                            color = when (task.priority) {
+                                                Priority.LOW -> MaterialTheme.colorScheme.tertiary
+                                                Priority.MEDIUM -> MaterialTheme.colorScheme.secondary
+                                                Priority.HIGH -> MaterialTheme.colorScheme.primary
+                                                Priority.URGENT -> MaterialTheme.colorScheme.error
+                                            },
+                                            shape = androidx.compose.foundation.shape.CircleShape
+                                        )
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                
+                                Text(
+                                    text = task.title,
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f)
+                                )
+                            }
+                            
+                            Spacer(modifier = Modifier.height(4.dp))
+                            
+                            if (task.description.isNotBlank()) {
+                                Text(
+                                    text = task.description,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(8.dp))
+                            }
+                            
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                // Status chip
+                                SuggestionChip(
+                                    onClick = { },
+                                    label = { Text(task.status.name) }
+                                )
+                                
+                                // Due date
+                                task.dueDate?.let { date ->
+                                    val formatter = SimpleDateFormat("MMM dd", Locale.getDefault())
+                                    Text(
+                                        text = formatter.format(date),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = if (task.isOverdue) MaterialTheme.colorScheme.error 
+                                                else MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             )
         }
@@ -329,7 +420,7 @@ fun CreateTaskDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TaskFilterSheet(
     currentFilter: TaskFilter,
@@ -338,6 +429,7 @@ fun TaskFilterSheet(
 ) {
     var filter by remember { mutableStateOf(currentFilter) }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     ModalBottomSheet(
         onDismissRequest = onDismiss
     ) {

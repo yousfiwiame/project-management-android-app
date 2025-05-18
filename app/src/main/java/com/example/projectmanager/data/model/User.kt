@@ -31,7 +31,13 @@ data class User(
     var isEmailVerified: Boolean = false,
     val role: UserRole = UserRole.MEMBER,
     val fcmToken: String? = null,
-    val preferences: UserPreferences = UserPreferences()
+    val preferences: UserPreferences = UserPreferences(),
+    @get:PropertyName("total_tasks")
+    val totalTasks: Int = 0,
+    @get:PropertyName("completed_tasks")
+    val completedTasks: Int = 0,
+    @get:PropertyName("active_projects")
+    val activeProjects: Int = 0
 )
 
 enum class UserStatus {
@@ -49,7 +55,6 @@ data class UserPreferences(
     val emailNotifications: Boolean = true,
     val pushNotifications: Boolean = true,
     @get:PropertyName("default_project_view")
-    @set:PropertyName("default_project_view")
     val defaultProjectView: String = "list",
     val language: String = "en"
 )

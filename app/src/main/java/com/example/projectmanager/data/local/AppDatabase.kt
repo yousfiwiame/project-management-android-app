@@ -5,10 +5,10 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.room.TypeConverters
+import com.example.projectmanager.data.local.Converters
 import com.example.projectmanager.data.local.converter.ListTypeConverter
 import com.example.projectmanager.data.local.dao.*
 import com.example.projectmanager.data.local.entity.*
-import com.example.projectmanager.util.DateConverter
 
 @Database(
     entities = [
@@ -22,7 +22,7 @@ import com.example.projectmanager.util.DateConverter
     version = 1,
     exportSchema = false
 )
-@TypeConverters(DateConverter::class, ListTypeConverter::class)
+@TypeConverters(value = [Converters::class, ListTypeConverter::class])
 abstract class AppDatabase : RoomDatabase() {
 
     abstract fun userDao(): UserDao

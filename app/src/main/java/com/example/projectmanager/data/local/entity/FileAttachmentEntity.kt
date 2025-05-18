@@ -4,6 +4,8 @@ import androidx.room.Entity
 import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.TypeConverters
+import com.example.projectmanager.data.local.Converters
 import java.util.Date
 
 @Entity(
@@ -44,6 +46,7 @@ import java.util.Date
         Index("uploadedById")
     ]
 )
+@TypeConverters(Converters::class)
 data class FileAttachmentEntity(
     @PrimaryKey
     val id: String,

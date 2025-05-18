@@ -21,28 +21,24 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.ProjectManager"
         tools:targetApi="31" >
+        
+        <!-- Debug reCAPTCHA API key for test environments -->
+        <meta-data
+            android:name="firebase_appcheck_debug_token"
+            android:value="DEBUGTOKEN123456" />
+            
         <activity
-            android:name=".ui.auth.SignInActivity"
+            android:name=".MainActivity"
             android:exported="true"
-            android:theme="@style/Theme.ProjectManager.NoActionBar"
+            android:theme="@style/Theme.ProjectManager"
             android:windowSoftInputMode="adjustResize">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <activity
-            android:name=".ui.auth.SignUpActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ProjectManager.NoActionBar"
-            android:windowSoftInputMode="adjustResize" />
-        <activity
-            android:name=".ui.main.MainActivity"
-            android:exported="false"
-            android:theme="@style/Theme.ProjectManager"
-            android:windowSoftInputMode="adjustResize" />
         <service
-            android:name=".service.FirebaseMessagingService"
+            android:name=".service.MyFirebaseMessagingService"
             android:exported="false">
             <intent-filter>
                 <action android:name="com.google.firebase.MESSAGING_EVENT" />

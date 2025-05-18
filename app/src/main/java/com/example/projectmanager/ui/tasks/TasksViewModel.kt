@@ -42,42 +42,45 @@ class TasksViewModel @Inject constructor(
         loadTasks()
     }
 
-    private fun loadTasks() {
+    fun loadTasks() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
-
             try {
-                userRepository.getCurrentUser().collectLatest { userResource ->
+                userRepository.getCurrentUser().collect { userResource ->
                     when (userResource) {
                         is Resource.Success -> {
                             userResource.data?.let { user ->
-                                taskRepository.getTasksByUser(user.id)
-                                    .map { tasks -> filterTasks(tasks, _uiState.value.filter) }
-                                    .collect { filteredTasks ->
-                                        _uiState.update { 
-                                            it.copy(
-                                                tasks = filteredTasks,
-                                                isLoading = false,
-                                                error = null
-                                            )
-                                        }
+                                taskRepository.getTasksByUser(user.id).collect { tasks ->
+                                    val filteredTasks = filterTasks(tasks, _uiState.value.filter)
+                                    
+                                    _uiState.update { state ->
+                                        state.copy(
+                                            tasks = filteredTasks,
+                                            isLoading = false,
+                                            error = null
+                                        )
                                     }
+                                }
                             }
                         }
                         is Resource.Error -> {
-                            _uiState.update { 
-                                it.copy(
+                            _uiState.update { state ->
+                                state.copy(
                                     isLoading = false,
                                     error = userResource.message
                                 )
                             }
                         }
-                        else -> {}
+                        is Resource.Loading -> {
+                            _uiState.update { state ->
+                                state.copy(isLoading = true)
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(
+                _uiState.update { state ->
+                    state.copy(
                         isLoading = false,
                         error = e.message ?: "Failed to load tasks"
                     )
@@ -97,7 +100,7 @@ class TasksViewModel @Inject constructor(
                             userResource.data?.let { user ->
                                 val newTask = task.copy(
                                     createdBy = user.id,
-                                    assignedTo = user.id
+                                    assignedTo = listOf(user.id)
                                 )
                                 
                                 when (val result = taskRepository.createTask(newTask)) {

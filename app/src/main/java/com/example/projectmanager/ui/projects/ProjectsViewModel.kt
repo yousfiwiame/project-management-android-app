@@ -3,6 +3,8 @@ package com.example.projectmanager.ui.projects
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.projectmanager.data.model.Project
+import com.example.projectmanager.data.model.ProjectMember
+import com.example.projectmanager.data.model.ProjectRole
 import com.example.projectmanager.data.repository.ProjectRepository
 import com.example.projectmanager.data.repository.UserRepository
 import com.example.projectmanager.util.Resource
@@ -34,41 +36,71 @@ class ProjectsViewModel @Inject constructor(
         loadProjects()
     }
 
-    private fun loadProjects() {
+    fun loadProjects() {
         viewModelScope.launch {
             _uiState.update { it.copy(isLoading = true) }
 
             try {
-                userRepository.getCurrentUser().collectLatest { userResource ->
+                userRepository.getCurrentUser().collect { userResource ->
                     when (userResource) {
                         is Resource.Success -> {
-                            userResource.data?.let { user ->
-                                projectRepository.getProjectsByUser(user.id)
-                                    .collect { projects ->
-                                        _uiState.update { 
-                                            it.copy(
-                                                projects = projects,
-                                                isLoading = false,
-                                                error = null
-                                            )
+                            val user = userResource.data
+                            if (user != null) {
+                                projectRepository.getProjectsByUser(user.id).collect { projects ->
+                                    when (projects) {
+                                        is Resource.Success -> {
+                                            _uiState.update { state ->
+                                                state.copy(
+                                                    projects = projects.data,
+                                                    isLoading = false,
+                                                    error = null
+                                                )
+                                            }
+                                        }
+
+                                        is Resource.Error -> {
+                                            _uiState.update { state ->
+                                                state.copy(
+                                                    isLoading = false,
+                                                    error = projects.message
+                                                )
+                                            }
+                                        }
+
+                                        is Resource.Loading -> {
+                                            _uiState.update { state ->
+                                                state.copy(isLoading = true)
+                                            }
                                         }
                                     }
+                                }
+                            } else {
+                                _uiState.update { state ->
+                                    state.copy(
+                                        isLoading = false,
+                                        error = "User not logged in"
+                                    )
+                                }
                             }
                         }
                         is Resource.Error -> {
-                            _uiState.update { 
-                                it.copy(
+                            _uiState.update { state ->
+                                state.copy(
                                     isLoading = false,
                                     error = userResource.message
                                 )
                             }
                         }
-                        else -> {}
+                        is Resource.Loading -> {
+                            _uiState.update { state ->
+                                state.copy(isLoading = true)
+                            }
+                        }
                     }
                 }
             } catch (e: Exception) {
-                _uiState.update { 
-                    it.copy(
+                _uiState.update { state ->
+                    state.copy(
                         isLoading = false,
                         error = e.message ?: "Failed to load projects"
                     )
@@ -88,7 +120,12 @@ class ProjectsViewModel @Inject constructor(
                             userResource.data?.let { user ->
                                 val newProject = project.copy(
                                     ownerId = user.id,
-                                    members = listOf(user.id)
+                                    members = listOf(
+                                        ProjectMember(
+                                            userId = user.id,
+                                            role = ProjectRole.OWNER
+                                        )
+                                    )
                                 )
                                 
                                 when (val result = projectRepository.createProject(newProject)) {
@@ -168,6 +205,32 @@ class ProjectsViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.update { 
                     it.copy(error = e.message ?: "Failed to update project")
+                }
+            }
+        }
+    }
+
+    fun addMemberToProject(projectId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                projectRepository.addMemberToProject(projectId, userId)
+                loadProjects()
+            } catch (e: Exception) {
+                _uiState.update { state ->
+                    state.copy(error = e.message ?: "Failed to add member")
+                }
+            }
+        }
+    }
+
+    fun removeMemberFromProject(projectId: String, userId: String) {
+        viewModelScope.launch {
+            try {
+                projectRepository.removeMemberFromProject(projectId, userId)
+                loadProjects()
+            } catch (e: Exception) {
+                _uiState.update { state ->
+                    state.copy(error = e.message ?: "Failed to remove member")
                 }
             }
         }

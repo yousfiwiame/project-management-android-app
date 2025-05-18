@@ -6,22 +6,13 @@ import com.example.projectmanager.data.model.Priority
 import com.example.projectmanager.data.model.ProjectStatus
 import com.example.projectmanager.data.model.TaskStatus
 import com.example.projectmanager.data.model.UserRole
+import com.example.projectmanager.data.model.NotificationType
 import com.google.gson.Gson
 import com.google.gson.reflect.TypeToken
+import java.util.Date
 
 class Converters {
     private val gson = Gson()
-
-    @TypeConverter
-    fun fromStringList(value: List<String>): String {
-        return gson.toJson(value)
-    }
-
-    @TypeConverter
-    fun toStringList(value: String): List<String> {
-        val listType = object : TypeToken<List<String>>() {}.type
-        return gson.fromJson(value, listType)
-    }
 
     @TypeConverter
     fun fromCommentList(value: List<Comment>): String {
@@ -73,4 +64,24 @@ class Converters {
     fun toUserRole(value: String): UserRole {
         return UserRole.valueOf(value)
     }
-} 
+
+    @TypeConverter
+    fun fromNotificationType(value: NotificationType): String {
+        return value.name
+    }
+
+    @TypeConverter
+    fun toNotificationType(value: String): NotificationType {
+        return NotificationType.valueOf(value)
+    }
+
+    @TypeConverter
+    fun fromDate(value: Date?): Long? {
+        return value?.time
+    }
+
+    @TypeConverter
+    fun toDate(value: Long?): Date? {
+        return value?.let { Date(it) }
+    }
+}

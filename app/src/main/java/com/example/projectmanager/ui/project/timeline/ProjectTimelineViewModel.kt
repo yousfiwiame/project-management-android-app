@@ -2,9 +2,11 @@ package com.example.projectmanager.ui.project.timeline
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.projectmanager.data.model.Project
 import com.example.projectmanager.data.model.Task
 import com.example.projectmanager.data.model.TaskStatus
 import com.example.projectmanager.data.repository.ProjectRepository
+import com.example.projectmanager.data.repository.TaskRepository
 import com.example.projectmanager.util.Resource
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.*
@@ -45,7 +47,8 @@ enum class TimelineSortOption(val displayName: String) {
 
 @HiltViewModel
 class ProjectTimelineViewModel @Inject constructor(
-    private val projectRepository: ProjectRepository
+    private val projectRepository: ProjectRepository,
+    private val taskRepository: TaskRepository
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(ProjectTimelineUiState())
@@ -53,89 +56,110 @@ class ProjectTimelineViewModel @Inject constructor(
 
     fun loadProject(projectId: String) {
         viewModelScope.launch {
-            _uiState.update { it.copy(isLoading = true) }
+            _uiState.update { currentState -> currentState.copy(isLoading = true) }
 
-            projectRepository.getProjectWithTasks(projectId).collect { result ->
-                when (result) {
-                    is Resource.Success -> {
-                        val project = result.data
-                        val tasks = project.tasks
-                        val timelineStartDate = tasks.minOfOrNull { it.startDate } ?: Date()
-                        val timelineEndDate = tasks.maxOfOrNull { it.dueDate } ?: Date()
-
-                        _uiState.update {
-                            it.copy(
-                                tasks = applyFilterAndSort(tasks),
-                                timelineStartDate = timelineStartDate,
-                                timelineEndDate = timelineEndDate,
-                                daysToShow = calculateDaysToShow(timelineStartDate, timelineEndDate),
+            try {
+                projectRepository.getProjectById(projectId).collect { project ->
+                    if (project != null) {
+                        loadProjectTasks(project.id)
+                    } else {
+                        _uiState.update { currentState ->
+                            currentState.copy(
                                 isLoading = false,
-                                error = null
+                                error = "Project not found"
                             )
                         }
                     }
-                    is Resource.Error -> {
-                        _uiState.update {
-                            it.copy(
-                                isLoading = false,
-                                error = result.message
-                            )
-                        }
+                }
+            } catch (e: Exception) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to load project"
+                    )
+                }
+            }
+        }
+    }
+
+    private fun loadProjectTasks(projectId: String) {
+        viewModelScope.launch {
+            try {
+                taskRepository.getTasksByProject(projectId).collect { tasks ->
+                    val timelineStartDate = tasks
+                        .mapNotNull { it.startDate }
+                        .minOrNull() ?: Date()
+
+                    val timelineEndDate = tasks
+                        .mapNotNull { it.dueDate }
+                        .maxOrNull() ?: Date()
+
+                    _uiState.update { currentState ->
+                        currentState.copy(
+                            tasks = applyFilterAndSort(tasks),
+                            timelineStartDate = timelineStartDate,
+                            timelineEndDate = timelineEndDate,
+                            daysToShow = calculateDaysToShow(timelineStartDate, timelineEndDate),
+                            isLoading = false,
+                            error = null
+                        )
                     }
-                    is Resource.Loading -> {
-                        _uiState.update {
-                            it.copy(isLoading = true)
-                        }
-                    }
+                }
+            } catch (e: Exception) {
+                _uiState.update { currentState ->
+                    currentState.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to load project tasks"
+                    )
                 }
             }
         }
     }
 
     fun updateFilter(filter: TimelineFilter) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { currentState ->
+            currentState.copy(
                 filter = filter,
-                tasks = applyFilterAndSort(it.tasks)
+                tasks = applyFilterAndSort(currentState.tasks)
             )
         }
     }
 
     fun updateSort(sort: TimelineSort) {
-        _uiState.update {
-            it.copy(
+        _uiState.update { currentState ->
+            currentState.copy(
                 sort = sort,
-                tasks = applyFilterAndSort(it.tasks)
+                tasks = applyFilterAndSort(currentState.tasks)
             )
         }
     }
 
     fun zoomIn() {
-        _uiState.update {
-            it.copy(
-                zoomLevel = (it.zoomLevel * 1.2f).coerceAtMost(2f),
-                daysToShow = (it.daysToShow / 1.2f).toInt().coerceAtLeast(7)
+        _uiState.update { currentState ->
+            currentState.copy(
+                zoomLevel = (currentState.zoomLevel * 1.2f).coerceAtMost(2f),
+                daysToShow = (currentState.daysToShow / 1.2f).toInt().coerceAtLeast(7)
             )
         }
     }
 
     fun zoomOut() {
-        _uiState.update {
-            it.copy(
-                zoomLevel = (it.zoomLevel / 1.2f).coerceAtLeast(0.5f),
-                daysToShow = (it.daysToShow * 1.2f).toInt().coerceAtMost(90)
+        _uiState.update { currentState ->
+            currentState.copy(
+                zoomLevel = (currentState.zoomLevel / 1.2f).coerceAtLeast(0.5f),
+                daysToShow = (currentState.daysToShow * 1.2f).toInt().coerceAtMost(90)
             )
         }
     }
 
     fun scrollToToday() {
         val today = Date()
-        _uiState.update {
-            it.copy(
+        _uiState.update { currentState ->
+            currentState.copy(
                 timelineStartDate = today,
                 timelineEndDate = Calendar.getInstance().apply {
                     time = today
-                    add(Calendar.DAY_OF_MONTH, it.daysToShow)
+                    add(Calendar.DAY_OF_MONTH, currentState.daysToShow)
                 }.time
             )
         }

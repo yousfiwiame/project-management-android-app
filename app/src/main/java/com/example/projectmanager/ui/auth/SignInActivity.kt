@@ -57,7 +57,7 @@ class SignInActivity : AppCompatActivity() {
             viewModel.authState.collectLatest { state ->
                 when (state) {
                     is Resource.Loading -> showLoading(true)
-                    is Resource.Success -> {
+                    is Resource.Success<*> -> {
                         showLoading(false)
                         navigateToMain()
                     }
@@ -92,7 +92,6 @@ class SignInActivity : AppCompatActivity() {
 
     private fun showLoading(show: Boolean) {
         binding.signInButton.isEnabled = !show
-        binding.progressBar.visibility = if (show) View.VISIBLE else View.GONE
     }
 
     private fun showError(message: String) {

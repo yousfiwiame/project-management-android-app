@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Project Manager</string>
+    <string name="default_notification_channel_id">project_notifications</string>
     
     <!-- Authentication -->
     <string name="sign_in">Sign In</string>

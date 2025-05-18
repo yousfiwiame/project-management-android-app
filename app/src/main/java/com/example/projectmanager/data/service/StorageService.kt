@@ -35,7 +35,7 @@ class StorageService @Inject constructor(
         commentId: String? = null
     ): Flow<Resource<FileAttachment>> = flow {
         try {
-            emit(Resource.Loading())
+            emit(Resource.Loading)
 
             // Get file metadata
             val contentResolver = context.contentResolver
@@ -82,7 +82,7 @@ class StorageService @Inject constructor(
 
     fun downloadFile(attachment: FileAttachment): Flow<Resource<File>> = flow {
         try {
-            emit(Resource.Loading())
+            emit(Resource.Loading)
 
             val localFile = File(context.cacheDir, attachment.name)
             storageRef.child(attachment.storagePath).getFile(localFile).await()
@@ -95,7 +95,7 @@ class StorageService @Inject constructor(
 
     fun deleteFile(attachment: FileAttachment): Flow<Resource<Unit>> = flow {
         try {
-            emit(Resource.Loading())
+            emit(Resource.Loading)
 
             // Delete main file
             storageRef.child(attachment.storagePath).delete().await()

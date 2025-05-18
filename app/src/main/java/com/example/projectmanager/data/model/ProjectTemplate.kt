@@ -11,7 +11,6 @@ data class ProjectTemplate(
     val name: String = "",
     val description: String = "",
     @get:PropertyName("created_by")
-    @set:PropertyName("created_by")
     val createdBy: String = "",
     val category: String = "",
     val isPublic: Boolean = false,
@@ -23,9 +22,8 @@ data class ProjectTemplate(
     val updatedAt: Date? = null,
     val tags: List<String> = emptyList(),
     @get:PropertyName("estimated_duration")
-    @set:PropertyName("estimated_duration")
     val estimatedDuration: Int = 0, // in days
-    val defaultMembers: List<ProjectRole> = emptyList()
+    val defaultMembers: List<String> = emptyList() // List of ProjectRole enum names
 )
 
 data class TaskTemplate(
@@ -33,7 +31,6 @@ data class TaskTemplate(
     val description: String = "",
     val priority: Priority = Priority.MEDIUM,
     @get:PropertyName("estimated_hours")
-    @set:PropertyName("estimated_hours")
     val estimatedHours: Float = 0f,
     val dependencies: List<String> = emptyList(), // References other task titles in the template
     val assigneeRole: String = "", // References a role from ProjectRole
@@ -44,13 +41,8 @@ data class MilestoneTemplate(
     val title: String = "",
     val description: String = "",
     @get:PropertyName("relative_deadline")
-    @set:PropertyName("relative_deadline")
     val relativeDeadline: Int = 0, // Days from project start
     val requiredTasks: List<String> = emptyList() // References task titles that must be completed
 )
 
-data class ProjectRole(
-    val role: String = "",
-    val description: String = "",
-    val permissions: List<String> = emptyList()
-) 
+ 

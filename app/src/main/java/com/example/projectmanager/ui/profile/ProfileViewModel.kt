@@ -71,7 +71,18 @@ class ProfileViewModel @Inject constructor(
             _uiState.update { it.copy(isLoading = true) }
 
             try {
-                when (val result = userRepository.updateUser(user)) {
+                // Convert User object to Map<String, Any>
+                val updates = mapOf(
+                    "displayName" to (user.displayName ?: ""),
+                    "photoUrl" to (user.photoUrl ?: ""),
+                    "phoneNumber" to (user.phoneNumber ?: ""),
+                    "bio" to (user.bio ?: ""),
+                    "position" to (user.position ?: ""),
+                    "department" to (user.department ?: ""),
+                    "skills" to (user.skills ?: emptyList<String>())
+                )
+                
+                when (val result = userRepository.updateProfile(updates)) {
                     is Resource.Success -> {
                         _uiState.update {
                             it.copy(

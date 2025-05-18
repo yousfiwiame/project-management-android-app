@@ -8,6 +8,7 @@ import com.example.projectmanager.data.model.Task
 import com.example.projectmanager.data.model.TaskStatus
 import com.example.projectmanager.data.model.Priority
 import com.example.projectmanager.data.model.Comment
+import com.example.projectmanager.data.model.TaskDependency
 
 @Entity(tableName = "tasks")
 @TypeConverters(Converters::class)
@@ -17,21 +18,21 @@ data class TaskEntity(
     val title: String,
     val description: String,
     val projectId: String,
-    val assignedTo: String?,
+    val assignedTo: List<String> = emptyList(),
     val createdBy: String,
     val status: TaskStatus,
     val priority: Priority,
     val dueDate: Long?,
     val createdAt: Long?,
     val updatedAt: Long?,
-    val tags: List<String>,
+    val tags: List<String> = emptyList(),
     val isCompleted: Boolean,
     val completedAt: Long?,
     val isOverdue: Boolean,
-    val dependencies: List<String>,
+    val dependencies: List<String> = emptyList(),
     val estimatedHours: Float?,
     val actualHours: Float?,
-    val comments: List<Comment>
+    val comments: List<Comment> = emptyList()
 ) {
     companion object {
         fun fromDomain(task: Task): TaskEntity {
@@ -51,7 +52,7 @@ data class TaskEntity(
                 isCompleted = task.isCompleted,
                 completedAt = task.completedAt?.time,
                 isOverdue = task.isOverdue,
-                dependencies = task.dependencies,
+                dependencies = task.dependencies.map { it.dependentTaskId },
                 estimatedHours = task.estimatedHours,
                 actualHours = task.actualHours,
                 comments = task.comments
@@ -76,7 +77,7 @@ data class TaskEntity(
             isCompleted = isCompleted,
             completedAt = completedAt?.let { java.util.Date(it) },
             isOverdue = isOverdue,
-            dependencies = dependencies,
+            dependencies = dependencies.map { TaskDependency(dependentTaskId = it) },
             estimatedHours = estimatedHours,
             actualHours = actualHours,
             comments = comments
