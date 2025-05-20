@@ -36,4 +36,8 @@ interface UserRepository {
     suspend fun syncUsers()
     suspend fun syncUser(userId: String)
     fun getCurrentUserId(): String
+    
+    // User search and retrieval
+    fun getUserById(userId: String): Flow<Resource<User>>
+    fun searchUsers(query: String): Flow<Resource<List<User>>>
 }

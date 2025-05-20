@@ -196,7 +196,7 @@ fun ProjectOverviewTab(project: Project) {
 
 // Tasks tab showing project tasks
 @Composable
-fun ProjectTasksTab(
+fun ProjectTasksTabComponent(
     tasks: List<Task>,
     onTaskClick: (String) -> Unit
 ) {

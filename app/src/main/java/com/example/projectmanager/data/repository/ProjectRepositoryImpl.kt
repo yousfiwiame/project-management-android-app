@@ -2,6 +2,8 @@ package com.example.projectmanager.data.repository
 
 import com.example.projectmanager.data.local.dao.ProjectDao
 import com.example.projectmanager.data.local.entity.ProjectEntity
+import com.example.projectmanager.data.model.Comment
+import com.example.projectmanager.data.model.FileAttachment
 import com.example.projectmanager.data.model.Project
 import com.example.projectmanager.util.Resource
 import com.google.firebase.firestore.FirebaseFirestore
@@ -25,6 +27,8 @@ class ProjectRepositoryImpl @Inject constructor(
 ) : ProjectRepository {
     
     private val projectsCollection = firestore.collection("projects")
+    private val commentsCollection = firestore.collection("comments")
+    private val attachmentsCollection = firestore.collection("attachments")
 
     override fun getProjectById(projectId: String): Flow<Project?> = flow {
         try {
@@ -268,4 +272,88 @@ class ProjectRepositoryImpl @Inject constructor(
             Timber.e(e, "Failed to sync project $projectId")
         }
     }
-} 
+    
+    // Comments related methods
+    override fun getProjectComments(projectId: String): Flow<List<Comment>> = flow {
+        try {
+            val snapshot = commentsCollection
+                .whereEqualTo("projectId", projectId)
+                .orderBy("createdAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+                
+            val comments = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(Comment::class.java)
+            }
+            
+            emit(comments)
+        } catch (e: Exception) {
+            Timber.e(e, "Error getting project comments")
+            emit(emptyList())
+        }
+    }
+    
+    override suspend fun addComment(comment: Comment): Resource<Comment> {
+        return try {
+            val commentRef = commentsCollection.document(comment.id)
+            commentRef.set(comment).await()
+            Resource.Success(comment)
+        } catch (e: Exception) {
+            Timber.e(e, "Error adding comment")
+            Resource.Error(e.message ?: "Failed to add comment")
+        }
+    }
+    
+    // Attachments related methods
+    override fun getProjectAttachments(projectId: String): Flow<List<FileAttachment>> = flow {
+        try {
+            val snapshot = attachmentsCollection
+                .whereEqualTo("projectId", projectId)
+                .orderBy("uploadedAt", Query.Direction.DESCENDING)
+                .get()
+                .await()
+                
+            val attachments = snapshot.documents.mapNotNull { doc ->
+                doc.toObject(FileAttachment::class.java)
+            }
+            
+            emit(attachments)
+        } catch (e: Exception) {
+            Timber.e(e, "Error getting project attachments")
+            emit(emptyList())
+        }
+    }
+    
+    override suspend fun uploadAttachment(
+        projectId: String,
+        fileName: String,
+        fileSize: Long,
+        mimeType: String,
+        fileUri: String,
+        uploadedBy: String
+    ): Resource<FileAttachment> {
+        return try {
+            // Create a new attachment document
+            val attachmentId = attachmentsCollection.document().id
+            
+            val attachment = FileAttachment(
+                id = attachmentId,
+                projectId = projectId,
+                name = fileName,
+                size = fileSize,
+                mimeType = mimeType,
+                storagePath = fileUri,
+                uploadedBy = uploadedBy,
+                uploadedAt = java.util.Date()
+            )
+            
+            // Save the attachment metadata to Firestore
+            attachmentsCollection.document(attachmentId).set(attachment).await()
+            
+            Resource.Success(attachment)
+        } catch (e: Exception) {
+            Timber.e(e, "Error uploading attachment")
+            Resource.Error(e.message ?: "Failed to upload attachment")
+        }
+    }
+}

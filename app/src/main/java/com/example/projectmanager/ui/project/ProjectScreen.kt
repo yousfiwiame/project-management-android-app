@@ -47,13 +47,7 @@ fun ProjectScreen(
     
     // Check if current user is the project manager
     val currentUserIsManager = remember(uiState.project) {
-        uiState.project?.let { project ->
-            project.ownerId == viewModel.getCurrentUserId() || 
-            project.members.any { 
-                it.userId == viewModel.getCurrentUserId() && 
-                (it.role == ProjectRole.MANAGER || it.role == ProjectRole.OWNER || it.role == ProjectRole.ADMIN)
-            }
-        } ?: false
+        viewModel.isCurrentUserManager()
     }
 
     LaunchedEffect(projectId) {
@@ -158,13 +152,33 @@ fun ProjectScreen(
                         // Tab content
                         when (selectedTabIndex) {
                             0 -> ProjectOverviewTab(project = project)
-                            1 -> ProjectTasksTab(
+                            1 -> ProjectTasksTabComponent(
                                 tasks = uiState.tasks,
                                 onTaskClick = onNavigateToTask
                             )
-                            2 -> ProjectMembersTab(members = uiState.members)
-                            3 -> ProjectCommentsTab(project = project)
-                            4 -> ProjectAttachmentsTab(project = project)
+                            2 -> ProjectMembersTab(
+                                project = project,
+                                members = uiState.members,
+                                userSuggestions = uiState.userSuggestions,
+                                searchQuery = uiState.searchQuery,
+                                isCurrentUserManager = currentUserIsManager,
+                                onSearchQueryChange = { query -> viewModel.searchUsers(query) },
+                                onAddMember = { user, role -> viewModel.addMemberToProject(user, role) },
+                                onRemoveMember = { userId -> viewModel.removeMemberFromProject(userId) },
+                                onClearSearch = { viewModel.clearSearch() }
+                            )
+                            3 -> ProjectCommentsTab(
+                                project = project,
+                                comments = uiState.comments,
+                                onAddComment = { content -> viewModel.addComment(content) }
+                            )
+                            4 -> ProjectAttachmentsTab(
+                                project = project,
+                                attachments = uiState.attachments,
+                                onUploadAttachment = { name, size, mimeType, uri ->
+                                    viewModel.uploadAttachment(name, size, mimeType, uri)
+                                }
+                            )
                         }
                     }
                 }
@@ -184,4 +198,12 @@ fun ProjectScreen(
             availableMembers = uiState.members
         )
     }
-} 
+    
+    // Show error message if there is one
+    if (uiState.error != null) {
+        LaunchedEffect(uiState.error) {
+            // Clear error after showing it
+            // You could add a Snackbar here to show the error
+        }
+    }
+}
