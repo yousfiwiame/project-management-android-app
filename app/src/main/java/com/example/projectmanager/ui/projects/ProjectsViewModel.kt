@@ -15,6 +15,8 @@ import javax.inject.Inject
 
 data class ProjectsUiState(
     val projects: List<Project> = emptyList(),
+    val filteredProjects: List<Project> = emptyList(),
+    val searchQuery: String = "",
     val isLoading: Boolean = false,
     val error: String? = null
 )
@@ -27,6 +29,9 @@ class ProjectsViewModel @Inject constructor(
 
     private val _uiState = MutableStateFlow(ProjectsUiState())
     val uiState: StateFlow<ProjectsUiState> = _uiState.asStateFlow()
+    
+    // Store the original list of projects
+    private var allProjects: List<Project> = emptyList()
 
     init {
         loadProjects()
@@ -50,8 +55,10 @@ class ProjectsViewModel @Inject constructor(
                                     when (projects) {
                                         is Resource.Success -> {
                                             _uiState.update { state ->
+                                                allProjects = projects.data
                                                 state.copy(
                                                     projects = projects.data,
+                                                    filteredProjects = filterProjects(projects.data, state.searchQuery),
                                                     isLoading = false,
                                                     error = null
                                                 )
@@ -207,6 +214,26 @@ class ProjectsViewModel @Inject constructor(
                     it.copy(error = e.message ?: "Failed to update project")
                 }
             }
+        }
+    }
+    
+    fun searchProjects(query: String) {
+        _uiState.update { currentState ->
+            currentState.copy(
+                searchQuery = query,
+                filteredProjects = filterProjects(allProjects, query)
+            )
+        }
+    }
+    
+    private fun filterProjects(projects: List<Project>, query: String): List<Project> {
+        if (query.isBlank()) return projects
+        
+        val lowercaseQuery = query.lowercase()
+        return projects.filter { project ->
+            project.name.lowercase().contains(lowercaseQuery) ||
+            project.description.lowercase().contains(lowercaseQuery) ||
+            project.tags.any { it.lowercase().contains(lowercaseQuery) }
         }
     }
 

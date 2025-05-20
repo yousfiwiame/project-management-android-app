@@ -141,7 +141,6 @@ class ProjectRepositoryImpl @Inject constructor(
         trySend(Resource.Loading)
         
         val subscription = projectsCollection
-            .whereArrayContains("members", userId)
             .orderBy("createdAt", Query.Direction.DESCENDING)
             .addSnapshotListener { snapshot, error ->
                 if (error != null) {
@@ -149,20 +148,25 @@ class ProjectRepositoryImpl @Inject constructor(
                     return@addSnapshotListener
                 }
 
-                val projects = snapshot?.documents?.mapNotNull {
+                val allProjects = snapshot?.documents?.mapNotNull {
                     it.toObject(Project::class.java)
                 } ?: emptyList()
+                
+                // Filter projects where the user is a member
+                val userProjects = allProjects.filter { project ->
+                    project.members.any { member -> member.userId == userId }
+                }
                 
                 // Update local cache
                 CoroutineScope(Dispatchers.IO).launch {
                     try {
-                        projectDao.insertProjects(projects.map { ProjectEntity.fromDomain(it) })
+                        projectDao.insertProjects(userProjects.map { ProjectEntity.fromDomain(it) })
                     } catch (e: Exception) {
                         Timber.e(e, "Error updating local cache")
                     }
                 }
                 
-                trySend(Resource.Success(projects))
+                trySend(Resource.Success(userProjects))
             }
 
         awaitClose { subscription.remove() }
@@ -194,7 +198,19 @@ class ProjectRepositoryImpl @Inject constructor(
             val project = projectsCollection.document(projectId).get().await().toObject(Project::class.java)
                 ?: return Resource.Error("Project not found")
             
-            val updatedMembers = project.members + userId
+            // Check if user is already a member
+            if (project.members.any { it.userId == userId }) {
+                return Resource.Success(Unit) // User is already a member
+            }
+            
+            // Create a new ProjectMember object
+            val newMember = com.example.projectmanager.data.model.ProjectMember(
+                userId = userId,
+                role = com.example.projectmanager.data.model.ProjectRole.MEMBER,
+                joinedAt = java.util.Date()
+            )
+            
+            val updatedMembers = project.members.toMutableList().apply { add(newMember) }
             projectsCollection.document(projectId)
                 .update("members", updatedMembers)
                 .await()
@@ -210,7 +226,7 @@ class ProjectRepositoryImpl @Inject constructor(
             val project = projectsCollection.document(projectId).get().await().toObject(Project::class.java)
                 ?: return Resource.Error("Project not found")
             
-            val updatedMembers = project.members - userId
+            val updatedMembers = project.members.filterNot { it.userId == userId }
             projectsCollection.document(projectId)
                 .update("members", updatedMembers)
                 .await()

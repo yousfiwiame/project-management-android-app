@@ -29,6 +29,19 @@ class ProjectViewModel @Inject constructor(
     private val userRepository: UserRepository
 ) : ViewModel() {
 
+    private var currentUserId: String? = null
+
+    init {
+        // Load current user ID
+        viewModelScope.launch {
+            userRepository.getCurrentUser().collect { resource ->
+                if (resource is Resource.Success) {
+                    currentUserId = resource.data?.id
+                }
+            }
+        }
+    }
+
     private val _uiState = MutableStateFlow(ProjectUiState())
     val uiState: StateFlow<ProjectUiState> = _uiState.asStateFlow()
 
@@ -145,4 +158,40 @@ class ProjectViewModel @Inject constructor(
             }
         }
     }
-} 
+    
+    fun getCurrentUserId(): String {
+        return currentUserId ?: ""
+    }
+    
+    fun createTask(task: Task) {
+        viewModelScope.launch {
+            _uiState.update { it.copy(isLoading = true) }
+            
+            try {
+                val result = taskRepository.createTask(task)
+                when (result) {
+                    is Resource.Success -> {
+                        // Refresh tasks list
+                        loadProject(task.projectId)
+                    }
+                    is Resource.Error -> {
+                        _uiState.update { 
+                            it.copy(
+                                isLoading = false,
+                                error = result.message
+                            )
+                        }
+                    }
+                    else -> {}
+                }
+            } catch (e: Exception) {
+                _uiState.update { 
+                    it.copy(
+                        isLoading = false,
+                        error = e.message ?: "Failed to create task"
+                    )
+                }
+            }
+        }
+    }
+}

@@ -152,11 +152,15 @@ class TaskDetailsViewModel @Inject constructor(
     fun addComment(text: String) {
         viewModelScope.launch {
             uiState.value.task?.let { task ->
+                val currentUserId = getCurrentUserId() // Get current user ID
                 val comment = Comment(
                     id = UUID.randomUUID().toString(),
+                    projectId = task.projectId, // Added projectId from task
+                    taskId = task.id, // Added taskId from task
+                    userId = currentUserId,
+                    authorName = "Current User", // Placeholder, fetch actual name if possible
                     content = text,
-                    userId = getCurrentUserId(),
-                    createdAt = Date().time
+                    createdAt = Date() // Pass Date object directly
                 )
 
                 val updatedTask = task.copy(
