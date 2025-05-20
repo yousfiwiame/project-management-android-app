@@ -43,12 +43,17 @@ data class CommentEntity(
 ) {
     fun toDomain() = Comment(
         id = id,
+        projectId = "", // Default value, not in entity
         taskId = taskId,
         userId = userId,
+        authorName = "", // Default value, not in entity
         content = content,
-        createdAt = createdAt,
-        updatedAt = updatedAt,
-        attachmentIds = attachmentIds
+        createdAt = Date(createdAt),
+        updatedAt = updatedAt?.let { Date(it) },
+        attachmentIds = attachmentIds,
+        mentions = emptyList(), // Default value, not in entity
+        parentId = null, // Default value, not in entity
+        isEdited = false // Default value, not in entity
     )
 
     companion object {
@@ -57,8 +62,8 @@ data class CommentEntity(
             taskId = comment.taskId,
             userId = comment.userId,
             content = comment.content,
-            createdAt = comment.createdAt,
-            updatedAt = comment.updatedAt,
+            createdAt = comment.createdAt.time,
+            updatedAt = comment.updatedAt?.time,
             attachmentIds = comment.attachmentIds
         )
     }

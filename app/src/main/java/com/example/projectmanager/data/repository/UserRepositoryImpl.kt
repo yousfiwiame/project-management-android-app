@@ -3,6 +3,7 @@ package com.example.projectmanager.data.repository
 import com.example.projectmanager.data.local.dao.UserDao
 import com.example.projectmanager.data.local.entity.UserEntity
 import com.example.projectmanager.data.model.User
+import com.example.projectmanager.data.model.UserPreferences
 import com.example.projectmanager.data.remote.firebase.FirebaseAuthSource
 import com.example.projectmanager.data.remote.firebase.FirestoreUserSource
 import com.example.projectmanager.util.Resource
@@ -253,5 +254,84 @@ class UserRepositoryImpl @Inject constructor(
 
     override fun getCurrentUserId(): String {
         return auth.currentUser?.uid ?: throw IllegalStateException("No user signed in")
+    }
+
+    // User search and retrieval methods
+    override fun getUserById(userId: String): Flow<Resource<User>> = flow {
+        emit(Resource.Loading)
+        try {
+            val userDoc = usersCollection.document(userId).get().await()
+            val user = userDoc.toObject(User::class.java)
+            if (user != null) {
+                // Cache user in local database
+                userDao.insertUser(UserEntity.fromDomain(user))
+                emit(Resource.Success(user))
+            } else {
+                emit(Resource.Error("User not found"))
+            }
+        } catch (e: Exception) {
+            Timber.e(e, "Error getting user by ID: $userId")
+            emit(Resource.Error(e.message ?: "Failed to get user"))
+            
+            // Try to get from local cache as fallback
+            try {
+                userDao.getUserById(userId).collect { userEntity ->
+                    userEntity?.let { entity ->
+                        // Create User domain model from UserEntity
+                        val user = User(
+                            id = entity.id,
+                            email = entity.email,
+                            displayName = entity.displayName,
+                            photoUrl = entity.photoUrl,
+                            isEmailVerified = entity.isEmailVerified,
+                            role = entity.role,
+                            createdAt = entity.createdAt?.let { java.util.Date(it) },
+                            lastLoginAt = entity.lastLoginAt?.let { java.util.Date(it) },
+                            fcmToken = entity.fcmToken,
+                            preferences = com.example.projectmanager.data.model.UserPreferences(
+                                theme = entity.theme,
+                                emailNotifications = entity.emailNotifications,
+                                pushNotifications = entity.pushNotifications,
+                                defaultProjectView = entity.defaultProjectView,
+                                language = entity.language
+                            )
+                        )
+                        emit(Resource.Success(user))
+                    }
+                }
+            } catch (e: Exception) {
+                Timber.e(e, "Error getting user from local cache")
+            }
+        }
+    }
+    
+    override fun searchUsers(query: String): Flow<Resource<List<User>>> = flow {
+        emit(Resource.Loading)
+        try {
+            // Search by displayName or email containing the query string
+            // This is a simple implementation - in a real app, you might want to use
+            // a more sophisticated search mechanism like Firestore's array-contains
+            // or a dedicated search service
+            val querySnapshot = usersCollection
+                .orderBy("displayName")
+                .get()
+                .await()
+                
+            val allUsers = querySnapshot.documents.mapNotNull { doc ->
+                doc.toObject(User::class.java)
+            }
+            
+            // Filter users whose displayName or email contains the query (case insensitive)
+            val lowerQuery = query.lowercase()
+            val filteredUsers = allUsers.filter { user ->
+                user.displayName.lowercase().contains(lowerQuery) ||
+                user.email.lowercase().contains(lowerQuery)
+            }
+            
+            emit(Resource.Success(filteredUsers))
+        } catch (e: Exception) {
+            Timber.e(e, "Error searching users with query: $query")
+            emit(Resource.Error(e.message ?: "Failed to search users"))
+        }
     }
 }

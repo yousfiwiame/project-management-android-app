@@ -1,5 +1,7 @@
 package com.example.projectmanager.data.repository
 
+import com.example.projectmanager.data.model.Comment
+import com.example.projectmanager.data.model.FileAttachment
 import com.example.projectmanager.data.model.Project
 import com.example.projectmanager.util.Resource
 import kotlinx.coroutines.flow.Flow
@@ -21,4 +23,19 @@ interface ProjectRepository {
     fun getStream(id: String): Flow<Resource<Project>>
     suspend fun syncProjects()
     suspend fun syncProject(projectId: String)
+
+    // Comments related methods
+    fun getProjectComments(projectId: String): Flow<List<Comment>>
+    suspend fun addComment(comment: Comment): Resource<Comment>
+
+    // Attachments related methods
+    fun getProjectAttachments(projectId: String): Flow<List<FileAttachment>>
+    suspend fun uploadAttachment(
+        projectId: String,
+        fileName: String,
+        fileSize: Long,
+        mimeType: String,
+        fileUri: String,
+        uploadedBy: String
+    ): Resource<FileAttachment>
 }

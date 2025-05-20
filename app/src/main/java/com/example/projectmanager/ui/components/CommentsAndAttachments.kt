@@ -177,7 +177,7 @@ fun CommentItem(
                         )
                         comment.createdAt?.let {
                             Text(
-                                text = formatDateFromTimestamp(it),
+                                text = formatDateFromTimestamp(it.time),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )

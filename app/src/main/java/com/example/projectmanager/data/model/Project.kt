@@ -70,25 +70,6 @@ enum class ProjectVisibility {
     PUBLIC      // Anyone in the organization can view
 }
 
-data class ProjectMember(
-    @get:PropertyName("user_id")
-    val userId: String = "",
-    val role: ProjectRole = ProjectRole.MEMBER,
-    val permissions: List<ProjectPermission> = emptyList(),
-    @get:PropertyName("joined_at")
-    val joinedAt: Date = Date(),
-    @get:PropertyName("hourly_rate")
-    val hourlyRate: Double? = null
-)
-
-enum class ProjectRole {
-    OWNER,
-    ADMIN,
-    MANAGER,
-    MEMBER,
-    VIEWER
-}
-
 enum class ProjectPermission {
     VIEW_PROJECT,
     EDIT_PROJECT,
@@ -143,18 +124,4 @@ enum class Priority {
     MEDIUM,
     HIGH,
     URGENT
-}
-
-data class Milestone(
-    val id: String = "",
-    val title: String = "",
-    val description: String = "",
-    val deadline: Timestamp? = null,
-    val status: MilestoneStatus = MilestoneStatus.PENDING,
-    @get:PropertyName("completed_at")
-    val completedAt: Timestamp? = null
-)
-
-enum class MilestoneStatus {
-    PENDING, IN_PROGRESS, COMPLETED, DELAYED
 }
